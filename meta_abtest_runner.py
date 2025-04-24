@@ -7,9 +7,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
-SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")  # GSheetの共有リンク
+SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 
-# 認証してスプレッドシートへ接続
+# --- Google Sheets ---
 def get_sheet():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
@@ -17,57 +17,54 @@ def get_sheet():
     sheet = client.open_by_url(SPREADSHEET_URL).sheet1
     return sheet
 
-# スプレッドシートに承認待ち広告を記録
 def write_to_sheet(ad, cpa, image_url):
     sheet = get_sheet()
     sheet.append_row([ad['id'], ad['name'], cpa, image_url, ""])
 
-# Slackに通知を送信
-def send_slack_notice(ad, cpa, image_url):
-    if not SLACK_WEBHOOK_URL:
-        print("⚠️ SLACK_WEBHOOK_URL が未設定です。通知をスキップします。")
-        return
-
-    text = f"""*📣 Meta広告通知*
-
-*広告名*: {ad['name']}
-*CPA*: ¥{cpa}
-*広告ID*: `{ad['id']}`
-*画像URL*: {image_url}
-
-👉 [広告停止の承認はこちら]({SPREADSHEET_URL})
-"""
-    payload = {"text": text}
-    res = requests.post(SLACK_WEBHOOK_URL, json=payload)
-    print("📨 Slack通知ステータス:", res.status_code)
-    print("📨 Slackレスポンス:", res.text)
-
-# 広告取得
+# --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
     params = {"fields": "id,name", "limit": 10, "access_token": ACCESS_TOKEN}
     res = requests.get(url, params=params)
-    print("📥 ステータス:", res.status_code)
-    print("📥 Ads List:", res.text)
+    print("\U0001F4E5 ステータス:", res.status_code)
+    print("\U0001F4E5 Ads List:", res.text)
     return res.json().get("data", [])
 
-# 広告インサイト取得
 def fetch_ad_insights(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
-    params = {"fields": "impressions,clicks,spend,actions,cost_per_action_type",
-              "date_preset": "last_7d",
-              "access_token": ACCESS_TOKEN}
+    params = {
+        "fields": "impressions,clicks,spend,actions,cost_per_action_type",
+        "date_preset": "last_7d",
+        "access_token": ACCESS_TOKEN
+    }
     res = requests.get(url, params=params)
-    print(f"📊 Insights for {ad_id}: {res.text}")
+    print(f"\U0001F4CA Insights for {ad_id}:", res.text)
     return res.json().get("data", [])[0] if res.json().get("data") else {}
 
-# サムネイル取得
 def fetch_creative_image_url(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}"
     res = requests.get(url)
     return res.json().get("creative", {}).get("thumbnail_url", "画像なし")
 
-# CPA計算
+def fetch_ad_details(ad_id):
+    url = f"https://graph.facebook.com/v19.0/{ad_id}"
+    params = {"fields": "name,campaign_id,adset_id", "access_token": ACCESS_TOKEN}
+    res = requests.get(url, params=params)
+    return res.json()
+
+def fetch_campaign_name(campaign_id):
+    url = f"https://graph.facebook.com/v19.0/{campaign_id}"
+    params = {"fields": "name", "access_token": ACCESS_TOKEN}
+    res = requests.get(url, params=params)
+    return res.json().get("name", "不明なキャンペーン")
+
+def fetch_adset_name(adset_id):
+    url = f"https://graph.facebook.com/v19.0/{adset_id}"
+    params = {"fields": "name", "access_token": ACCESS_TOKEN}
+    res = requests.get(url, params=params)
+    return res.json().get("name", "不明な広告セット")
+
+# --- Logic ---
 def calculate_cpa(ad):
     try:
         insights = ad.get("insights", {})
@@ -80,10 +77,36 @@ def calculate_cpa(ad):
             return None
         return round(spend / conversions, 2)
     except Exception as e:
-        print("💥 CPA計算エラー:", e)
+        print("\u274c CPA計算エラー:", e)
         return None
 
-# メイン
+def send_slack_notice(ad, cpa, image_url):
+    if not SLACK_WEBHOOK_URL:
+        print("\u26a0\ufe0f SLACK_WEBHOOK_URL が未設定です。")
+        return
+
+    ad_id = ad['id']
+    ad_details = fetch_ad_details(ad_id)
+    campaign_name = fetch_campaign_name(ad_details.get("campaign_id", ""))
+    adset_name = fetch_adset_name(ad_details.get("adset_id", ""))
+
+    text = f"""*\U0001F4E3 Meta広告通知*
+
+*\u30ad\u30e3\u30f3\u30da\u30fc\u30f3\u540d*: {campaign_name}
+*\u5e83\u544a\u30bb\u30c3\u30c8\u540d*: {adset_name}
+*\u5e83\u544a\u540d*: {ad['name']}
+*CPA*: ¥{cpa}
+*\u5e83\u544aID*: `{ad_id}`
+*\u753b\u50cfURL*: {image_url}
+
+\U0001f449 [\u5e83\u544a\u505c\u6b62\u306e\u627f\u8a8d\u306f\u3053\u3061\u3089]({SPREADSHEET_URL})
+"""
+    payload = {"text": text}
+    res = requests.post(SLACK_WEBHOOK_URL, json=payload)
+    print("\U0001f4e8 Slack通知ステータス:", res.status_code)
+    print("\U0001f4e8 Slackレスポンス:", res.text)
+
+# --- Main Execution ---
 def main():
     ads = fetch_ad_ids(ACCOUNT_ID)
     ads_with_insights = []
