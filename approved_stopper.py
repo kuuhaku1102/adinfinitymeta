@@ -1,3 +1,4 @@
+print("トークンチェック（ACCESS_TOKENの先頭10文字）:", ACCESS_TOKEN[:10])
 import requests
 import os
 import gspread
