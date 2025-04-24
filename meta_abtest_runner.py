@@ -13,11 +13,18 @@ def fetch_ads(account_id):
         "access_token": ACCESS_TOKEN
     }
     res = requests.get(url, params=params)
-    
-    print("📥 APIレスポンスステータス:", res.status_code)
-    print("📥 APIレスポンスJSON:", res.text)
-    
-    return res.json().get("data", [])
+
+    # ← ここでログを強制出力
+    print("📥 ステータスコード:", res.status_code)
+    print("📥 レスポンス本文:")
+    print(res.text)
+
+    try:
+        return res.json().get("data", [])
+    except Exception as e:
+        print("⚠️ JSONパースエラー:", e)
+        return []
+
 
 
 def calculate_cpa(ad):
