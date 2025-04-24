@@ -51,6 +51,12 @@ def fetch_ad_insights(ad_id):
     print(f"\U0001F4CA Insights for {ad_id}:", res.text)
     return res.json().get("data", [])[0] if res.json().get("data") else {}
 
+def fetch_ad_type(ad_id):
+    url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=id,name,effective_status&access_token={ACCESS_TOKEN}"
+    res = requests.get(url)
+    print(f"📋 IDタイプ確認ログ for {ad_id}:")
+    print(res.text)
+
 def fetch_creative_image_url(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}"
     res = requests.get(url)
