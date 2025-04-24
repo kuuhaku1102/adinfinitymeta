@@ -26,3 +26,4 @@ jobs:
         env:
           ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           ACCOUNT_ID: "act_1410377143077190"
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # ←これを追加
