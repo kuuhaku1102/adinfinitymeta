@@ -73,18 +73,19 @@ def send_slack_notice(ad, cpa, image_url):
         return
 
     ad_id = ad['id']
-    text = f"""*⏸️ 停止候補広告*
+    text = f"""*📣 Meta広告通知*
 
 *広告名*: {ad['name']}
 *CPA*: ¥{cpa}
 *広告ID*: `{ad_id}`
 *画像URL*: {image_url}
 
-⚠️ 成果ベースでCPAが高いため停止対象です。
+⚠️ 成果ベースで評価された広告の情報です。
 """
     payload = {"text": text}
     res = requests.post(SLACK_WEBHOOK_URL, json=payload)
-    print("📨 Slack通知結果:", res.status_code)
+    print("📨 Slack通知ステータス:", res.status_code)
+    print("📨 Slackレスポンス:", res.text)
 
 # メイン実行
 def main():
@@ -102,17 +103,22 @@ def main():
         if (cpa := calculate_cpa(ad)) is not None
     ]
 
+    if not ads_with_cpa:
+        print("⚠️ 成果のある広告がありません。")
+        return
+
     ads_sorted = sorted(ads_with_cpa, key=lambda x: x[1])
     winner = ads_sorted[0][0] if ads_sorted else None
 
     for ad, cpa in ads_with_cpa:
         image_url = fetch_creative_image_url(ad["id"])
-        if ad != winner:
+        if ad == winner:
+            print(f"[KEEP] {ad['name']} - CPA: {cpa}")
+            send_slack_notice(ad, cpa, image_url)
+        else:
             print(f"[STOP] {ad['name']} - CPA: {cpa}")
             send_slack_notice(ad, cpa, image_url)
             pause_ad(ad["id"])
-        else:
-            print(f"[KEEP] {ad['name']} - CPA: {cpa}")
 
 if __name__ == "__main__":
     main()
