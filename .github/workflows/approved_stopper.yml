@@ -27,6 +27,7 @@ jobs:
       - name: Run approved stopper
         run: python approved_stopper.py
         env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           SPREADSHEET_URL: ${{ secrets.SPREADSHEET_URL }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
