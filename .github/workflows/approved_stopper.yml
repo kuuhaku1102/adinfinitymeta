@@ -2,8 +2,8 @@ name: Approved Ad Stopper
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 毎6時間に1回実行（UTC基準）
-  workflow_dispatch:       # 手動でも実行できるようにしておく
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   stop-approved:
@@ -28,5 +28,5 @@ jobs:
         run: python approved_stopper.py
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SPREADSHEET_URL: ${{ secrets.SPREADSHEET_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
