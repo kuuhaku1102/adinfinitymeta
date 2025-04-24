@@ -27,6 +27,7 @@ def pause_ad(ad_id):
     print("APIレスポンス:", res.text)
     return res.status_code == 200
 
+
 # Slack通知
 def send_slack_confirmation(ad_id, ad_name):
     if not SLACK_WEBHOOK_URL:
