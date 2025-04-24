@@ -23,20 +23,20 @@ def pause_ad(ad_id):
         "access_token": ACCESS_TOKEN
     }
     res = requests.post(url, data=data)
-    print(f"\u23f8\ufe0f Paused Ad: {ad_id} → {res.status_code}")
-    print("\ud83d\udcc5 APIレスポンス:", res.text)
+    print(f"Paused Ad: {ad_id} → {res.status_code}")
+    print("APIレスポンス:", res.text)
     return res.status_code == 200
 
 # Slack通知
 def send_slack_confirmation(ad_id, ad_name):
     if not SLACK_WEBHOOK_URL:
-        print("\u26a0\ufe0f SLACK_WEBHOOK_URLが未設定です")
+        print("[警告] SLACK_WEBHOOK_URLが未設定です")
         return
 
-    message = f"\u2705 *広告停止実行済み通知*\n\n*広告名*: {ad_name}\n*広告ID*: `{ad_id}`\n\u23f8\ufe0f 停止が完了しました。"
+    message = f"✅ *広告停止実行済み通知*\n\n*広告名*: {ad_name}\n*広告ID*: `{ad_id}`\n⏸️ 停止が完了しました。"
     payload = {"text": message}
     res = requests.post(SLACK_WEBHOOK_URL, json=payload)
-    print("\ud83d\udce8 Slack通知結果:", res.status_code)
+    print("Slack通知結果:", res.status_code)
 
 # メイン処理
 def main():
@@ -49,7 +49,7 @@ def main():
         approval = row.get("承認", "").strip().upper()
 
         if approval == "YES":
-            print(f"\u2709 承認済み広告検出: {ad_id} ({ad_name})")
+            print(f"承認済み広告検出: {ad_id} ({ad_name})")
             success = pause_ad(ad_id)
             if success:
                 send_slack_confirmation(ad_id, ad_name)
