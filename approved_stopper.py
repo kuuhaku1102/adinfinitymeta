@@ -23,7 +23,8 @@ def pause_ad(ad_id):
         "access_token": ACCESS_TOKEN
     }
     res = requests.post(url, data=data)
-    print(f"\u23f8\ufe0f Paused Ad: {ad_id} → {res.status_code}")
+    print(f"⏸️ Paused Ad: {ad_id} → {res.status_code}")
+    print("📥 APIレスポンス:", res.text)  # ← 追加
     return res.status_code == 200
 
 # Slack通知
