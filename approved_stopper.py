@@ -1,4 +1,3 @@
-print("トークンチェック（ACCESS_TOKENの先頭10文字）:", ACCESS_TOKEN[:10])
 import requests
 import os
 import gspread
@@ -7,6 +6,10 @@ from oauth2client.service_account import ServiceAccountCredentials
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+
+# 🔍 トークンの確認ログ
+print("トークンチェック（ACCESS_TOKENの先頭10文字）:", ACCESS_TOKEN[:10])
+
 
 # Google Sheets接続
 def get_sheet():
