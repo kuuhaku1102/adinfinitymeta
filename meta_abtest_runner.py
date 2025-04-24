@@ -13,7 +13,12 @@ def fetch_ads(account_id):
         "access_token": ACCESS_TOKEN
     }
     res = requests.get(url, params=params)
+    
+    print("📥 APIレスポンスステータス:", res.status_code)
+    print("📥 APIレスポンスJSON:", res.text)
+    
     return res.json().get("data", [])
+
 
 def calculate_cpa(ad):
     try:
