@@ -15,8 +15,17 @@ def get_sheet():
     sheet = client.open_by_url(SPREADSHEET_URL).sheet1
     return sheet
 
+# 広告の現在ステータスを確認
+def fetch_ad_status(ad_id):
+    url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=status,effective_status&access_token={ACCESS_TOKEN}"
+    res = requests.get(url)
+    print(f"広告ステータス確認: {res.text}")
+    return res.json()
+
 # Meta広告を停止する
 def pause_ad(ad_id):
+    fetch_ad_status(ad_id)  # ステータス確認ログを追加
+
     url = f"https://graph.facebook.com/v19.0/{ad_id}"
     data = {
         "status": "PAUSED",
@@ -26,7 +35,6 @@ def pause_ad(ad_id):
     print(f"Paused Ad: {ad_id} → {res.status_code}")
     print("APIレスポンス:", res.text)
     return res.status_code == 200
-
 
 # Slack通知
 def send_slack_confirmation(ad_id, ad_name):
