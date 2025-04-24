@@ -1,0 +1,32 @@
+name: Approved Ad Stopper
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 毎6時間に1回実行（UTC基準）
+  workflow_dispatch:       # 手動でも実行できるようにしておく
+
+jobs:
+  stop-approved:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore credentials.json
+        run: echo "${{ secrets.GSHEET_JSON }}" | base64 -d > credentials.json
+
+      - name: Run approved stopper
+        run: python approved_stopper.py
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SPREADSHEET_URL: ${{ secrets.SPREADSHEET_URL }}
