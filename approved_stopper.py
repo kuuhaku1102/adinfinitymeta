@@ -16,11 +16,16 @@ def get_sheet():
     return sheet
 
 # Meta広告を停止する
-def fetch_ad_type(ad_id):
-    url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=id,name,effective_status&access_token={ACCESS_TOKEN}"
-    res = requests.get(url)
-    print(f"📋 IDタイプ確認ログ for {ad_id}:")
-    print(res.text)
+def pause_ad(ad_id):
+    url = f"https://graph.facebook.com/v19.0/{ad_id}"
+    data = {
+        "status": "PAUSED",
+        "access_token": ACCESS_TOKEN
+    }
+    res = requests.post(url, data=data)
+    print(f"\u23f8\ufe0f Paused Ad: {ad_id} → {res.status_code}")
+    print("\ud83d\udcc5 APIレスポンス:", res.text)
+    return res.status_code == 200
 
 # Slack通知
 def send_slack_confirmation(ad_id, ad_name):
@@ -31,7 +36,7 @@ def send_slack_confirmation(ad_id, ad_name):
     message = f"\u2705 *広告停止実行済み通知*\n\n*広告名*: {ad_name}\n*広告ID*: `{ad_id}`\n\u23f8\ufe0f 停止が完了しました。"
     payload = {"text": message}
     res = requests.post(SLACK_WEBHOOK_URL, json=payload)
-    print("\U0001F4E8 Slack通知結果:", res.status_code)
+    print("\ud83d\udce8 Slack通知結果:", res.status_code)
 
 # メイン処理
 def main():
