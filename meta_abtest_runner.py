@@ -19,25 +19,18 @@ def get_sheet():
 
 def write_to_sheet(ad, cpa, image_url):
     sheet = get_sheet()
-
-    # A1セルが空ならヘッダーを書き込む
-    try:
-        if not sheet.cell(1, 1).value or sheet.cell(1, 1).value.strip() == "":
-            sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
-    except:
-        # エラー時は強制的にヘッダー書き込み
+    existing_rows = sheet.get_all_values()
+    if not existing_rows or not existing_rows[0]:
         sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
-
-    # 実データを追記
-    sheet.append_row([ad['id'], ad['name'], cpa, image_url, ""])
+    sheet.append_row([ad['id'], ad['name'], cpa if cpa is not None else "N/A", image_url, ""])
 
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-    params = {"fields": "id,name", "limit": 10, "access_token": ACCESS_TOKEN}
+    params = {"fields": "id,name", "limit": 50, "access_token": ACCESS_TOKEN}
     res = requests.get(url, params=params)
-    print("\U0001F4E5 ステータス:", res.status_code)
-    print("\U0001F4E5 Ads List:", res.text)
+    print("📥 ステータス:", res.status_code)
+    print("📥 Ads List:", res.text)
     return res.json().get("data", [])
 
 def fetch_ad_insights(ad_id):
@@ -48,7 +41,7 @@ def fetch_ad_insights(ad_id):
         "access_token": ACCESS_TOKEN
     }
     res = requests.get(url, params=params)
-    print(f"\U0001F4CA Insights for {ad_id}:", res.text)
+    print(f"📊 Insights for {ad_id}:", res.text)
     return res.json().get("data", [])[0] if res.json().get("data") else {}
 
 def fetch_creative_image_url(ad_id):
@@ -75,24 +68,26 @@ def fetch_adset_name(adset_id):
     return res.json().get("name", "不明な広告セット")
 
 # --- Logic ---
-def calculate_cpa(ad):
+def calculate_metrics(ad):
     try:
         insights = ad.get("insights", {})
         conversions = next(
             (int(a['value']) for a in insights.get("actions", []) if a["action_type"] in ["lead", "onsite_conversion.lead_grouped"]),
             0
         )
+        clicks = int(insights.get("clicks", 0))
+        impressions = int(insights.get("impressions", 0))
         spend = float(insights.get("spend", 0))
-        if conversions == 0:
-            return None
-        return round(spend / conversions, 2)
+        cpa = round(spend / conversions, 2) if conversions > 0 else None
+        ctr = round(clicks / impressions, 4) if impressions > 0 else 0
+        return cpa, ctr
     except Exception as e:
-        print("\u274c CPA計算エラー:", e)
-        return None
+        print("❌ 指標計算エラー:", e)
+        return None, 0
 
-def send_slack_notice(ad, cpa, image_url):
+def send_slack_notice(ad, cpa, image_url, label):
     if not SLACK_WEBHOOK_URL:
-        print("\u26a0\ufe0f SLACK_WEBHOOK_URL が未設定です。")
+        print("[警告] SLACK_WEBHOOK_URLが未設定です")
         return
 
     ad_id = ad['id']
@@ -100,21 +95,20 @@ def send_slack_notice(ad, cpa, image_url):
     campaign_name = fetch_campaign_name(ad_details.get("campaign_id", ""))
     adset_name = fetch_adset_name(ad_details.get("adset_id", ""))
 
-    text = f"""*\U0001F4E3 Meta広告通知*
+    text = f"""*📣 Meta広告通知 [{label}]*
 
-*\u30ad\u30e3\u30f3\u30da\u30fc\u30f3\u540d*: {campaign_name}
-*\u5e83\u544a\u30bb\u30c3\u30c8\u540d*: {adset_name}
-*\u5e83\u544a\u540d*: {ad['name']}
-*CPA*: ¥{cpa}
-*\u5e83\u544aID*: `{ad_id}`
-*\u753b\u50cfURL*: {image_url}
+*キャンペーン名*: {campaign_name}
+*広告セット名*: {adset_name}
+*広告名*: {ad['name']}
+*CPA*: ¥{cpa if cpa is not None else 'N/A'}
+*広告ID*: `{ad_id}`
+*画像URL*: {image_url}
 
-\U0001f449 [\u5e83\u544a\u505c\u6b62\u306e\u627f\u8a8d\u306f\u3053\u3061\u3089]({SPREADSHEET_URL})
+👉 [広告停止の承認はこちら]({SPREADSHEET_URL})
 """
     payload = {"text": text}
     res = requests.post(SLACK_WEBHOOK_URL, json=payload)
-    print("\U0001f4e8 Slack通知ステータス:", res.status_code)
-    print("\U0001f4e8 Slackレスポンス:", res.text)
+    print("Slack通知結果:", res.status_code)
 
 # --- Main Execution ---
 def main():
@@ -125,20 +119,25 @@ def main():
         ad["insights"] = insights
         ads_with_insights.append(ad)
 
-    ads_with_cpa = [(ad, calculate_cpa(ad)) for ad in ads_with_insights if calculate_cpa(ad) is not None]
+    # 成果 or CTRを評価
+    ads_with_metrics = []
+    for ad in ads_with_insights:
+        cpa, ctr = calculate_metrics(ad)
+        ads_with_metrics.append((ad, cpa, ctr))
 
-    if not ads_with_cpa:
-        print("⚠️ 成果のある広告がありません。")
-        return
+    # 勝者の抽出（CVありならCPAで、CVなしでもCTR上位5位）
+    with_cpa = [entry for entry in ads_with_metrics if entry[1] is not None]
+    without_cpa = [entry for entry in ads_with_metrics if entry[1] is None]
 
-    ads_sorted = sorted(ads_with_cpa, key=lambda x: x[1])
-    winner = ads_sorted[0][0] if ads_sorted else None
+    top_ctr_no_cv = sorted(without_cpa, key=lambda x: x[2], reverse=True)[:5]  # CTR高い順で5件
+    winners = [entry[0] for entry in sorted(with_cpa, key=lambda x: x[1])[:1] + top_ctr_no_cv]
 
-    for ad, cpa in ads_with_cpa:
-        image_url = fetch_creative_image_url(ad["id"])
-        print(f"[通知] {ad['name']} - CPA: {cpa}")
-        send_slack_notice(ad, cpa, image_url)
-        write_to_sheet(ad, cpa, image_url)
+    for ad, cpa, ctr in ads_with_metrics:
+        if ad not in winners:
+            image_url = fetch_creative_image_url(ad["id"])
+            print(f"[通知] {ad['name']} - CPA: {cpa} CTR: {ctr}")
+            send_slack_notice(ad, cpa, image_url, label="STOP候補")
+            write_to_sheet(ad, cpa, image_url)
 
 if __name__ == "__main__":
     main()
