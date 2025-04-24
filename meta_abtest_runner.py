@@ -7,33 +7,35 @@ ACCOUNT_ID = os.getenv("ACCOUNT_ID")  # GitHub Actions側で固定的に指定�
 def fetch_ads(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
     params = {
-        "fields": "id,ad_name,impressions,clicks,spend,actions,cost_per_action_type",
-        "date_preset": "last_7d",
+        "fields": "id,ad_name,insights.date_preset(last_7d){impressions,clicks,spend,actions,cost_per_action_type}",
         "limit": 10,
         "access_token": ACCESS_TOKEN
     }
-    res = requests.get(url, params=params)
 
-    # ← ここでログを強制出力
+    res = requests.get(url, params=params)
     print("📥 ステータスコード:", res.status_code)
     print("📥 レスポンス本文:")
     print(res.text)
 
     try:
-        return res.json().get("data", [])
+        data = res.json()
+        ads = data.get("data", [])
+        print(f"📊 広告取得件数: {len(ads)}")
+        return ads
     except Exception as e:
-        print("⚠️ JSONパースエラー:", e)
+        print("💥 JSONエラー:", e)
         return []
-
-
 
 def calculate_cpa(ad):
     try:
-        conversions = next((int(a['value']) for a in ad.get("actions", []) if a["action_type"] == "offsite_conversion"), 0)
-        spend = float(ad.get("spend", 0))
+        insights = ad.get("insights", [{}])[0]
+        conversions = next((int(a['value']) for a in insights.get("actions", []) if a["action_type"] == "offsite_conversion"), 0)
+        spend = float(insights.get("spend", 0))
         return round(spend / conversions, 2) if conversions > 0 else float('inf')
-    except Exception:
+    except Exception as e:
+        print("CPA計算エラー:", e)
         return float('inf')
+
 
 def pause_ad(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}"
