@@ -1,5 +1,6 @@
 import requests
 import os
+import json
 
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
@@ -18,7 +19,7 @@ def fetch_ad_ids(account_id):
     print("📥 Ads List:", res.text)
     return res.json().get("data", [])
 
-# 広告ごとのインサイト（成果情報）を取得
+# 各広告の成果インサイト取得
 def fetch_ad_insights(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
     params = {
@@ -31,25 +32,31 @@ def fetch_ad_insights(ad_id):
     data = res.json().get("data", [])
     return data[0] if data else {}
 
-# 広告のサムネイル画像URLを取得
+# クリエイティブ画像URL取得
 def fetch_creative_image_url(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}"
     res = requests.get(url)
     data = res.json()
     return data.get("creative", {}).get("thumbnail_url", "画像なし")
 
-# CPAを計算
+# CPA計算（CV=0なら評価対象外）
 def calculate_cpa(ad):
     try:
         insights = ad.get("insights", {})
-        conversions = next((int(a['value']) for a in insights.get("actions", []) if a["action_type"] in ["lead", "onsite_conversion.lead_grouped"]), 0)
+        actions = insights.get("actions", [])
+        conversions = next(
+            (int(a['value']) for a in actions if a["action_type"] in ["lead", "onsite_conversion.lead_grouped"]),
+            0
+        )
         spend = float(insights.get("spend", 0))
-        return round(spend / conversions, 2) if conversions > 0 else float('inf')
+        if conversions == 0:
+            return None  # 成果なし → 評価除外
+        return round(spend / conversions, 2)
     except Exception as e:
         print("💥 CPA計算エラー:", e)
-        return float('inf')
+        return None
 
-# 広告を停止
+# 広告停止
 def pause_ad(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}"
     data = {
@@ -59,26 +66,27 @@ def pause_ad(ad_id):
     res = requests.post(url, data=data)
     print(f"⏸️ Paused Ad: {ad_id} → {res.status_code}")
 
-# Slack通知を送信
+# Slack通知
 def send_slack_notice(ad, cpa, image_url):
     if not SLACK_WEBHOOK_URL:
         print("⚠️ SLACK_WEBHOOK_URL が未設定です。通知をスキップします。")
         return
 
+    ad_id = ad['id']
     text = f"""*⏸️ 停止候補広告*
 
 *広告名*: {ad['name']}
 *CPA*: ¥{cpa}
-*広告ID*: `{ad['id']}`
+*広告ID*: `{ad_id}`
 *画像URL*: {image_url}
 
-⚠️ この広告を停止候補として通知します。
+⚠️ 成果ベースでCPAが高いため停止対象です。
 """
     payload = {"text": text}
     res = requests.post(SLACK_WEBHOOK_URL, json=payload)
     print("📨 Slack通知結果:", res.status_code)
 
-# メイン処理
+# メイン実行
 def main():
     ads = fetch_ad_ids(ACCOUNT_ID)
     ads_with_insights = []
@@ -87,7 +95,13 @@ def main():
         ad["insights"] = insights
         ads_with_insights.append(ad)
 
-    ads_with_cpa = [(ad, calculate_cpa(ad)) for ad in ads_with_insights]
+    # 成果あり（CV > 0）の広告だけ評価対象
+    ads_with_cpa = [
+        (ad, cpa)
+        for ad in ads_with_insights
+        if (cpa := calculate_cpa(ad)) is not None
+    ]
+
     ads_sorted = sorted(ads_with_cpa, key=lambda x: x[1])
     winner = ads_sorted[0][0] if ads_sorted else None
 
