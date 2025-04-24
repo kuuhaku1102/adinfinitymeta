@@ -37,7 +37,7 @@ def fetch_ad_insights(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
     params = {
         "fields": "impressions,clicks,spend,actions,cost_per_action_type",
-        "date_preset": "last_7d",
+        "date_preset": "last_14d",
         "access_token": ACCESS_TOKEN
     }
     res = requests.get(url, params=params)
