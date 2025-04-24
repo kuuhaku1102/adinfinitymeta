@@ -19,6 +19,16 @@ def get_sheet():
 
 def write_to_sheet(ad, cpa, image_url):
     sheet = get_sheet()
+
+    # A1セルが空ならヘッダーを書き込む
+    try:
+        if not sheet.cell(1, 1).value or sheet.cell(1, 1).value.strip() == "":
+            sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
+    except:
+        # エラー時は強制的にヘッダー書き込み
+        sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
+
+    # 実データを追記
     sheet.append_row([ad['id'], ad['name'], cpa, image_url, ""])
 
 # --- Meta API Fetch Functions ---
