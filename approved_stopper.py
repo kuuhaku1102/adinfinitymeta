@@ -16,16 +16,11 @@ def get_sheet():
     return sheet
 
 # Meta広告を停止する
-def pause_ad(ad_id):
-    url = f"https://graph.facebook.com/v19.0/{ad_id}"
-    data = {
-        "status": "PAUSED",
-        "access_token": ACCESS_TOKEN
-    }
-    res = requests.post(url, data=data)
-    print(f"⏸️ Paused Ad: {ad_id} → {res.status_code}")
-    print("📥 APIレスポンス:", res.text)  # ← 追加
-    return res.status_code == 200
+def fetch_ad_type(ad_id):
+    url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=id,name,effective_status&access_token={ACCESS_TOKEN}"
+    res = requests.get(url)
+    print(f"📋 IDタイプ確認ログ for {ad_id}:")
+    print(res.text)
 
 # Slack通知
 def send_slack_confirmation(ad_id, ad_name):
