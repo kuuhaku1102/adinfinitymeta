@@ -1,93 +1,89 @@
 import requests
 import os
 import json
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")  # GSheetの共有リンク
 
-# 広告一覧を取得
-def fetch_ad_ids(account_id):
-    url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-    params = {
-        "fields": "id,name",
-        "limit": 10,
-        "access_token": ACCESS_TOKEN
-    }
-    res = requests.get(url, params=params)
-    print("📥 ステータス:", res.status_code)
-    print("📥 Ads List:", res.text)
-    return res.json().get("data", [])
+# 認証してスプレッドシートへ接続
+def get_sheet():
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_url(SPREADSHEET_URL).sheet1
+    return sheet
 
-# 各広告の成果インサイト取得
-def fetch_ad_insights(ad_id):
-    url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
-    params = {
-        "fields": "impressions,clicks,spend,actions,cost_per_action_type",
-        "date_preset": "last_7d",
-        "access_token": ACCESS_TOKEN
-    }
-    res = requests.get(url, params=params)
-    print(f"📊 Insights for {ad_id}: {res.text}")
-    data = res.json().get("data", [])
-    return data[0] if data else {}
+# スプレッドシートに承認待ち広告を記録
+def write_to_sheet(ad, cpa, image_url):
+    sheet = get_sheet()
+    sheet.append_row([ad['id'], ad['name'], cpa, image_url, ""])
 
-# クリエイティブ画像URL取得
-def fetch_creative_image_url(ad_id):
-    url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}"
-    res = requests.get(url)
-    data = res.json()
-    return data.get("creative", {}).get("thumbnail_url", "画像なし")
-
-# CPA計算（CV=0なら評価対象外）
-def calculate_cpa(ad):
-    try:
-        insights = ad.get("insights", {})
-        actions = insights.get("actions", [])
-        conversions = next(
-            (int(a['value']) for a in actions if a["action_type"] in ["lead", "onsite_conversion.lead_grouped"]),
-            0
-        )
-        spend = float(insights.get("spend", 0))
-        if conversions == 0:
-            return None  # 成果なし → 評価除外
-        return round(spend / conversions, 2)
-    except Exception as e:
-        print("💥 CPA計算エラー:", e)
-        return None
-
-# 広告停止
-def pause_ad(ad_id):
-    url = f"https://graph.facebook.com/v19.0/{ad_id}"
-    data = {
-        "status": "PAUSED",
-        "access_token": ACCESS_TOKEN
-    }
-    res = requests.post(url, data=data)
-    print(f"⏸️ Paused Ad: {ad_id} → {res.status_code}")
-
-# Slack通知
+# Slackに通知を送信
 def send_slack_notice(ad, cpa, image_url):
     if not SLACK_WEBHOOK_URL:
         print("⚠️ SLACK_WEBHOOK_URL が未設定です。通知をスキップします。")
         return
 
-    ad_id = ad['id']
     text = f"""*📣 Meta広告通知*
 
 *広告名*: {ad['name']}
 *CPA*: ¥{cpa}
-*広告ID*: `{ad_id}`
+*広告ID*: `{ad['id']}`
 *画像URL*: {image_url}
 
-⚠️ 成果ベースで評価された広告の情報です。
+👉 [広告停止の承認はこちら]({SPREADSHEET_URL})
 """
     payload = {"text": text}
     res = requests.post(SLACK_WEBHOOK_URL, json=payload)
     print("📨 Slack通知ステータス:", res.status_code)
     print("📨 Slackレスポンス:", res.text)
 
-# メイン実行
+# 広告取得
+def fetch_ad_ids(account_id):
+    url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
+    params = {"fields": "id,name", "limit": 10, "access_token": ACCESS_TOKEN}
+    res = requests.get(url, params=params)
+    print("📥 ステータス:", res.status_code)
+    print("📥 Ads List:", res.text)
+    return res.json().get("data", [])
+
+# 広告インサイト取得
+def fetch_ad_insights(ad_id):
+    url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
+    params = {"fields": "impressions,clicks,spend,actions,cost_per_action_type",
+              "date_preset": "last_7d",
+              "access_token": ACCESS_TOKEN}
+    res = requests.get(url, params=params)
+    print(f"📊 Insights for {ad_id}: {res.text}")
+    return res.json().get("data", [])[0] if res.json().get("data") else {}
+
+# サムネイル取得
+def fetch_creative_image_url(ad_id):
+    url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}"
+    res = requests.get(url)
+    return res.json().get("creative", {}).get("thumbnail_url", "画像なし")
+
+# CPA計算
+def calculate_cpa(ad):
+    try:
+        insights = ad.get("insights", {})
+        conversions = next(
+            (int(a['value']) for a in insights.get("actions", []) if a["action_type"] in ["lead", "onsite_conversion.lead_grouped"]),
+            0
+        )
+        spend = float(insights.get("spend", 0))
+        if conversions == 0:
+            return None
+        return round(spend / conversions, 2)
+    except Exception as e:
+        print("💥 CPA計算エラー:", e)
+        return None
+
+# メイン
 def main():
     ads = fetch_ad_ids(ACCOUNT_ID)
     ads_with_insights = []
@@ -96,12 +92,7 @@ def main():
         ad["insights"] = insights
         ads_with_insights.append(ad)
 
-    # 成果あり（CV > 0）の広告だけ評価対象
-    ads_with_cpa = [
-        (ad, cpa)
-        for ad in ads_with_insights
-        if (cpa := calculate_cpa(ad)) is not None
-    ]
+    ads_with_cpa = [(ad, calculate_cpa(ad)) for ad in ads_with_insights if calculate_cpa(ad) is not None]
 
     if not ads_with_cpa:
         print("⚠️ 成果のある広告がありません。")
@@ -112,13 +103,9 @@ def main():
 
     for ad, cpa in ads_with_cpa:
         image_url = fetch_creative_image_url(ad["id"])
-        if ad == winner:
-            print(f"[KEEP] {ad['name']} - CPA: {cpa}")
-            send_slack_notice(ad, cpa, image_url)
-        else:
-            print(f"[STOP] {ad['name']} - CPA: {cpa}")
-            send_slack_notice(ad, cpa, image_url)
-            pause_ad(ad["id"])
+        print(f"[通知] {ad['name']} - CPA: {cpa}")
+        send_slack_notice(ad, cpa, image_url)
+        write_to_sheet(ad, cpa, image_url)
 
 if __name__ == "__main__":
     main()
