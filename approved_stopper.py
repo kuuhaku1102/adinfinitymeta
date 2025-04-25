@@ -10,7 +10,6 @@ SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 # 🔍 トークンの確認ログ
 print("トークンチェック（ACCESS_TOKENの先頭10文字）:", ACCESS_TOKEN[:10])
 
-
 # Google Sheets接続
 def get_sheet():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -28,7 +27,12 @@ def fetch_ad_status(ad_id):
 
 # Meta広告を停止する
 def pause_ad(ad_id):
-    fetch_ad_status(ad_id)  # ステータス確認ログを追加
+    ad_status = fetch_ad_status(ad_id)
+    effective_status = ad_status.get("effective_status") or ad_status.get("status")
+
+    if effective_status in ["PAUSED", "ARCHIVED"]:
+        print(f"スキップ: {ad_id} はすでに停止済み（ステータス: {effective_status}）")
+        return False
 
     url = f"https://graph.facebook.com/v19.0/{ad_id}"
     data = {
