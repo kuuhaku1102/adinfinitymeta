@@ -7,6 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
+CAMPAIGN_IDS = os.getenv("CAMPAIGN_IDS")  # 追加：特定キャンペーンIDの取得
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 
@@ -19,6 +20,13 @@ def get_account_ids():
     else:
         print("[警告] ACCOUNT_IDまたはACCOUNT_IDSが未設定です")
         return []
+
+# --- Campaign IDの取得 ---
+def get_campaign_ids():
+    """環境変数 CAMPAIGN_IDS をカンマ区切りでリスト化。未指定なら空リスト。"""
+    if CAMPAIGN_IDS:
+        return [cid.strip() for cid in CAMPAIGN_IDS.split(',') if cid.strip()]
+    return []
 
 # --- Google Sheets ---
 def get_sheet():
@@ -45,17 +53,16 @@ def write_to_sheet(ad, cpa, image_url):
 def write_rows_to_sheet(rows):
     """複数行をまとめて Google Sheets に書き込む関数。"""
     sheet = get_sheet()
-    # ヘッダー行がなければ追加
     if not sheet.row_values(1):
         sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
-    # 一度に複数行を追加（USER_ENTERED にすると数値も自動判定される）
     sheet.append_rows(rows, value_input_option='USER_ENTERED')
 
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
+    # campaign_id フィールドを追加しておく
     params = [
-        ("fields", "id,name,effective_status"),
+        ("fields", "id,name,effective_status,campaign_id"),
         ("limit", 50),
         ("access_token", ACCESS_TOKEN),
         ("effective_status", "['ACTIVE']")
@@ -147,7 +154,14 @@ def send_slack_notice(ad, cpa, image_url, label):
 # --- 各アカウントの評価 ---
 def evaluate_account(account_id):
     print(f"=== {account_id} の広告を評価中 ===")
+    campaign_filter = set(get_campaign_ids())  # 対象キャンペーンIDの集合
     ads = fetch_ad_ids(account_id)
+
+    # キャンペーンIDフィルタが設定されている場合は該当キャンペーンの広告のみ残す
+    if campaign_filter:
+        ads = [ad for ad in ads if ad.get("campaign_id") in campaign_filter]
+
+    # 以下の処理はこれまでと同じ
     ads_with_insights = []
     for ad in ads:
         insights = fetch_ad_insights(ad["id"])
@@ -167,7 +181,6 @@ def evaluate_account(account_id):
 
     rows_to_write = []
     for ad, cpa, ctr in ads_with_metrics:
-        # winner 以外の広告を停止候補として通知・行を作成
         if ad not in winners:
             image_url = fetch_creative_image_url(ad["id"])
             print(f"[通知] {ad['name']} - CPA: {cpa} CTR: {ctr}")
@@ -179,7 +192,6 @@ def evaluate_account(account_id):
                 image_url,
                 ""
             ])
-    # 行が存在する場合はまとめてシートに書き込む
     if rows_to_write:
         write_rows_to_sheet(rows_to_write)
 
