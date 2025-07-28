@@ -30,8 +30,8 @@ def get_sheet():
     return sheet
 
 def write_to_sheet(ad, cpa, image_url):
+    """従来の1行書き込み関数（現在は使用しないが残しておく）。"""
     sheet = get_sheet()
-    # ヘッダー行がなければ追加する
     if not sheet.row_values(1):
         sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
     sheet.append_row([
@@ -42,10 +42,18 @@ def write_to_sheet(ad, cpa, image_url):
         ""
     ])
 
+def write_rows_to_sheet(rows):
+    """複数行をまとめて Google Sheets に書き込む関数。"""
+    sheet = get_sheet()
+    # ヘッダー行がなければ追加
+    if not sheet.row_values(1):
+        sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
+    # 一度に複数行を追加（USER_ENTERED にすると数値も自動判定される）
+    sheet.append_rows(rows, value_input_option='USER_ENTERED')
+
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-    # effective_status を配列形式で指定
     params = [
         ("fields", "id,name,effective_status"),
         ("limit", 50),
@@ -151,21 +159,29 @@ def evaluate_account(account_id):
         cpa, ctr = calculate_metrics(ad)
         ads_with_metrics.append((ad, cpa, ctr))
 
-    # CPA を持つ広告と持たない広告に分ける
     with_cpa = [entry for entry in ads_with_metrics if entry[1] is not None]
     without_cpa = [entry for entry in ads_with_metrics if entry[1] is None]
 
-    # CPA がある広告は最小値のものを 1 件、CPA が無い広告は CTR 上位 5 件を選ぶ
     top_ctr_no_cv = sorted(without_cpa, key=lambda x: x[2], reverse=True)[:5]
     winners = [entry[0] for entry in sorted(with_cpa, key=lambda x: x[1])[:1] + top_ctr_no_cv]
 
+    rows_to_write = []
     for ad, cpa, ctr in ads_with_metrics:
-        # winner 以外の広告を停止候補として通知・スプレッドシートに登録
+        # winner 以外の広告を停止候補として通知・行を作成
         if ad not in winners:
             image_url = fetch_creative_image_url(ad["id"])
             print(f"[通知] {ad['name']} - CPA: {cpa} CTR: {ctr}")
             send_slack_notice(ad, cpa, image_url, label="STOP候補")
-            write_to_sheet(ad, cpa, image_url)
+            rows_to_write.append([
+                ad['id'],
+                ad['name'],
+                cpa if cpa is not None else "N/A",
+                image_url,
+                ""
+            ])
+    # 行が存在する場合はまとめてシートに書き込む
+    if rows_to_write:
+        write_rows_to_sheet(rows_to_write)
 
 # --- Main Entry Point ---
 def main():
