@@ -1,9 +1,9 @@
 name: Meta ABテスト自動評価
 
 on:
-  workflow_dispatch:  # 手動実行可能
+  workflow_dispatch:      # 手動実行用
   schedule:
-    - cron: "0 0 * * *"  # 毎日 00:00 UTC（日本時間9:00）に実行
+    - cron: "0 0 * * *"   # 毎日 00:00 UTC（日本時間9:00）に実行
 
 jobs:
   run-abtest:
@@ -23,14 +23,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests gspread oauth2client
 
+      # GSHEET_JSON が base64 エンコードされている場合は -d で復号する。
+      # プレーン JSON の場合は単に echo "$GSHEET_JSON" > credentials.json としてください。
       - name: Google認証情報を書き出す（credentials.json）
         run: |
-          echo "${{ secrets.GSHEET_JSON }}" > credentials.json
+          echo "${{ secrets.GSHEET_JSON }}" | base64 -d > credentials.json
 
       - name: Meta ABテスト評価スクリプトを実行
         env:
           ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
-          ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}   # または ACCOUNT_IDS
+          ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}   # 複数アカウントの場合は ACCOUNT_IDS を使用
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SPREADSHEET_URL: ${{ secrets.SPREADSHEET_URL }}
         run: python meta_abtest_runner.py
