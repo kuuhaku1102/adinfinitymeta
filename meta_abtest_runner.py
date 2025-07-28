@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
-CAMPAIGN_IDS = os.getenv("CAMPAIGN_IDS")  # 追加：特定キャンペーンIDの取得
+CAMPAIGN_IDS = os.getenv("CAMPAIGN_IDS")  # ★特定キャンペーンID（カンマ区切り）
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 
@@ -53,24 +53,44 @@ def write_to_sheet(ad, cpa, image_url):
 def write_rows_to_sheet(rows):
     """複数行をまとめて Google Sheets に書き込む関数。"""
     sheet = get_sheet()
+    # ヘッダーが無ければ追加
     if not sheet.row_values(1):
         sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
     sheet.append_rows(rows, value_input_option='USER_ENTERED')
 
 # --- Meta API Fetch Functions ---
-def fetch_ad_ids(account_id):
-    url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-    # campaign_id フィールドを追加しておく
-    params = [
-        ("fields", "id,name,effective_status,campaign_id"),
-        ("limit", 50),
-        ("access_token", ACCESS_TOKEN),
-        ("effective_status", "['ACTIVE']")
-    ]
-    res = requests.get(url, params=params)
-    print("📥 ステータス:", res.status_code)
-    print("📥 Ads List:", res.text)
-    return res.json().get("data", [])
+def fetch_ad_ids(account_id, campaign_ids=None):
+    """
+    アカウントまたは特定キャンペーンから広告IDを取得する。
+    campaign_ids が指定されていれば /<campaign_id>/ads エンドポイントを使う。
+    """
+    ads = []
+    if campaign_ids:
+        # キャンペーン単位で広告を取得
+        for cid in campaign_ids:
+            url = f"https://graph.facebook.com/v19.0/{cid}/ads"
+            params = [
+                ("fields", "id,name,effective_status"),
+                ("limit", 50),
+                ("access_token", ACCESS_TOKEN),
+                ("effective_status", "['ACTIVE']")
+            ]
+            res = requests.get(url, params=params)
+            print(f"キャンペーン {cid} の広告取得ステータス:", res.status_code)
+            ads.extend(res.json().get("data", []))
+        return ads
+    else:
+        # アカウント全体の広告を取得
+        url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
+        params = [
+            ("fields", "id,name,effective_status,campaign_id"),
+            ("limit", 50),
+            ("access_token", ACCESS_TOKEN),
+            ("effective_status", "['ACTIVE']")
+        ]
+        res = requests.get(url, params=params)
+        print("アカウントの広告取得ステータス:", res.status_code)
+        return res.json().get("data", [])
 
 def fetch_ad_insights(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
@@ -154,25 +174,25 @@ def send_slack_notice(ad, cpa, image_url, label):
 # --- 各アカウントの評価 ---
 def evaluate_account(account_id):
     print(f"=== {account_id} の広告を評価中 ===")
-    campaign_filter = set(get_campaign_ids())  # 対象キャンペーンIDの集合
-    ads = fetch_ad_ids(account_id)
 
-    # キャンペーンIDフィルタが設定されている場合は該当キャンペーンの広告のみ残す
-    if campaign_filter:
-        ads = [ad for ad in ads if ad.get("campaign_id") in campaign_filter]
+    # CAMPAIGN_IDS が設定されていればそのキャンペーンだけ取得
+    campaign_ids = get_campaign_ids()
+    ads = fetch_ad_ids(account_id, campaign_ids=campaign_ids if campaign_ids else None)
 
-    # 以下の処理はこれまでと同じ
+    # 広告ごとの insights 取得
     ads_with_insights = []
     for ad in ads:
         insights = fetch_ad_insights(ad["id"])
         ad["insights"] = insights
         ads_with_insights.append(ad)
 
+    # 指標計算
     ads_with_metrics = []
     for ad in ads_with_insights:
         cpa, ctr = calculate_metrics(ad)
         ads_with_metrics.append((ad, cpa, ctr))
 
+    # winner を選定
     with_cpa = [entry for entry in ads_with_metrics if entry[1] is not None]
     without_cpa = [entry for entry in ads_with_metrics if entry[1] is None]
 
@@ -192,6 +212,8 @@ def evaluate_account(account_id):
                 image_url,
                 ""
             ])
+
+    # まとめてシートに書き込み
     if rows_to_write:
         write_rows_to_sheet(rows_to_write)
 
