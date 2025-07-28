@@ -6,6 +6,16 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
+ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
+
+def get_account_ids():
+    if ACCOUNT_IDS:
+        return [aid.strip() for aid in ACCOUNT_IDS.split(',') if aid.strip()]
+    elif ACCOUNT_ID:
+        return [ACCOUNT_ID]
+    else:
+        print("[警告] ACCOUNT_IDまたはACCOUNT_IDSが未設定です")
+        return []
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 
@@ -111,8 +121,9 @@ def send_slack_notice(ad, cpa, image_url, label):
     print("Slack通知結果:", res.status_code)
 
 # --- Main Execution ---
-def main():
-    ads = fetch_ad_ids(ACCOUNT_ID)
+def evaluate_account(account_id):
+    print(f"=== {account_id} の広告を評価中 ===")
+    ads = fetch_ad_ids(account_id)
     ads_with_insights = []
     for ad in ads:
         insights = fetch_ad_insights(ad["id"])
@@ -129,7 +140,7 @@ def main():
     with_cpa = [entry for entry in ads_with_metrics if entry[1] is not None]
     without_cpa = [entry for entry in ads_with_metrics if entry[1] is None]
 
-    top_ctr_no_cv = sorted(without_cpa, key=lambda x: x[2], reverse=True)[:5]  # CTR高い順で5件
+    top_ctr_no_cv = sorted(without_cpa, key=lambda x: x[2], reverse=True)[:5]
     winners = [entry[0] for entry in sorted(with_cpa, key=lambda x: x[1])[:1] + top_ctr_no_cv]
 
     for ad, cpa, ctr in ads_with_metrics:
@@ -138,6 +149,10 @@ def main():
             print(f"[通知] {ad['name']} - CPA: {cpa} CTR: {ctr}")
             send_slack_notice(ad, cpa, image_url, label="STOP候補")
             write_to_sheet(ad, cpa, image_url)
+
+def main():
+    for aid in get_account_ids():
+        evaluate_account(aid)
 
 if __name__ == "__main__":
     main()
