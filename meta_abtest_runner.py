@@ -1,9 +1,9 @@
 import requests
 import os
-import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
+# 環境変数の読み込み
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
@@ -22,7 +22,8 @@ def get_account_ids():
 
 # --- Google Sheets ---
 def get_sheet():
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    scope = ['https://spreadsheets.google.com/feeds',
+             'https://www.googleapis.com/auth/drive']
     creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_url(SPREADSHEET_URL).sheet1
@@ -30,19 +31,26 @@ def get_sheet():
 
 def write_to_sheet(ad, cpa, image_url):
     sheet = get_sheet()
+    # ヘッダー行がなければ追加する
     if not sheet.row_values(1):
         sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
-    sheet.append_row([ad['id'], ad['name'], cpa if cpa is not None else "N/A", image_url, ""])
+    sheet.append_row([
+        ad['id'],
+        ad['name'],
+        cpa if cpa is not None else "N/A",
+        image_url,
+        ""
+    ])
 
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-    # ✅ Meta API仕様に準拠した配列形式パラメータ渡し
+    # effective_status を配列形式で指定
     params = [
         ("fields", "id,name,effective_status"),
         ("limit", 50),
         ("access_token", ACCESS_TOKEN),
-        ("effective_status", "ACTIVE")
+        ("effective_status", "['ACTIVE']")
     ]
     res = requests.get(url, params=params)
     print("📥 ステータス:", res.status_code)
@@ -61,7 +69,8 @@ def fetch_ad_insights(ad_id):
     return res.json().get("data", [])[0] if res.json().get("data") else {}
 
 def fetch_creative_image_url(ad_id):
-    url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}"
+    url = (f"https://graph.facebook.com/v19.0/{ad_id}"
+           f"?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}")
     res = requests.get(url)
     return res.json().get("creative", {}).get("thumbnail_url", "画像なし")
 
@@ -88,7 +97,8 @@ def calculate_metrics(ad):
     try:
         insights = ad.get("insights", {})
         conversions = next(
-            (int(a['value']) for a in insights.get("actions", []) if a["action_type"] in ["lead", "onsite_conversion.lead_grouped"]),
+            (int(a['value']) for a in insights.get("actions", [])
+             if a["action_type"] in ["lead", "onsite_conversion.lead_grouped"]),
             0
         )
         clicks = int(insights.get("clicks", 0))
@@ -141,12 +151,16 @@ def evaluate_account(account_id):
         cpa, ctr = calculate_metrics(ad)
         ads_with_metrics.append((ad, cpa, ctr))
 
+    # CPA を持つ広告と持たない広告に分ける
     with_cpa = [entry for entry in ads_with_metrics if entry[1] is not None]
     without_cpa = [entry for entry in ads_with_metrics if entry[1] is None]
+
+    # CPA がある広告は最小値のものを 1 件、CPA が無い広告は CTR 上位 5 件を選ぶ
     top_ctr_no_cv = sorted(without_cpa, key=lambda x: x[2], reverse=True)[:5]
     winners = [entry[0] for entry in sorted(with_cpa, key=lambda x: x[1])[:1] + top_ctr_no_cv]
 
     for ad, cpa, ctr in ads_with_metrics:
+        # winner 以外の広告を停止候補として通知・スプレッドシートに登録
         if ad not in winners:
             image_url = fetch_creative_image_url(ad["id"])
             print(f"[通知] {ad['name']} - CPA: {cpa} CTR: {ctr}")
