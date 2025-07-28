@@ -29,8 +29,7 @@ def get_sheet():
     sheet = client.open_by_url(SPREADSHEET_URL).sheet1
     return sheet
 
-def write_to_sheet(ad, cpa, image_url):
-    sheet = get_sheet()
+def write_to_sheet(sheet, ad, cpa, image_url):
     # ヘッダー行がなければ追加する
     if not sheet.row_values(1):
         sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
@@ -45,12 +44,11 @@ def write_to_sheet(ad, cpa, image_url):
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-    # effective_status を配列形式で指定
     params = [
         ("fields", "id,name,effective_status"),
         ("limit", 50),
         ("access_token", ACCESS_TOKEN),
-        ("effective_status", "['ACTIVE']")
+        ("effective_status", "ACTIVE")  # 正しい形式
     ]
     res = requests.get(url, params=params)
     print("📥 ステータス:", res.status_code)
@@ -140,6 +138,8 @@ def send_slack_notice(ad, cpa, image_url, label):
 def evaluate_account(account_id):
     print(f"=== {account_id} の広告を評価中 ===")
     ads = fetch_ad_ids(account_id)
+    sheet = get_sheet()  # ✅ 一度だけ取得して使い回す
+
     ads_with_insights = []
     for ad in ads:
         insights = fetch_ad_insights(ad["id"])
@@ -151,21 +151,17 @@ def evaluate_account(account_id):
         cpa, ctr = calculate_metrics(ad)
         ads_with_metrics.append((ad, cpa, ctr))
 
-    # CPA を持つ広告と持たない広告に分ける
     with_cpa = [entry for entry in ads_with_metrics if entry[1] is not None]
     without_cpa = [entry for entry in ads_with_metrics if entry[1] is None]
-
-    # CPA がある広告は最小値のものを 1 件、CPA が無い広告は CTR 上位 5 件を選ぶ
     top_ctr_no_cv = sorted(without_cpa, key=lambda x: x[2], reverse=True)[:5]
     winners = [entry[0] for entry in sorted(with_cpa, key=lambda x: x[1])[:1] + top_ctr_no_cv]
 
     for ad, cpa, ctr in ads_with_metrics:
-        # winner 以外の広告を停止候補として通知・スプレッドシートに登録
         if ad not in winners:
             image_url = fetch_creative_image_url(ad["id"])
             print(f"[通知] {ad['name']} - CPA: {cpa} CTR: {ctr}")
             send_slack_notice(ad, cpa, image_url, label="STOP候補")
-            write_to_sheet(ad, cpa, image_url)
+            write_to_sheet(sheet, ad, cpa, image_url)  # ✅ sheet を引数で再利用
 
 # --- Main Entry Point ---
 def main():
