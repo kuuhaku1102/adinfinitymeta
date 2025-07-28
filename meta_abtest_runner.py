@@ -40,7 +40,7 @@ def fetch_ad_ids(account_id):
     params = {
         "fields": "id,name,effective_status",
         "limit": 50,
-        "effective_status": ["ACTIVE"],  # ACTIVEな広告のみ取得
+        "effective_status": "ACTIVE",  # ✅ 修正：リストではなく文字列に
         "access_token": ACCESS_TOKEN
     }
     res = requests.get(url, params=params)
