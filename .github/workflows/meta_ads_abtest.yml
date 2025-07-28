@@ -28,6 +28,6 @@ jobs:
         run: python meta_abtest_runner.py
         env:
           ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
-          ACCOUNT_ID: "act_1410377143077190"
+          ACCOUNT_IDS: "act_1410377143077190,act_136286435732155"
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SPREADSHEET_URL: ${{ secrets.SPREADSHEET_URL }}
