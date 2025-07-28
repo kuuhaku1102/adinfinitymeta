@@ -24,7 +24,8 @@ jobs:
           pip install requests gspread oauth2client
 
       - name: Google認証情報を書き出す（credentials.json）
-        run: echo "${{ secrets.GSHEET_JSON }}" > credentials.json
+        run: |
+          echo "${{ secrets.GSHEET_JSON }}" > credentials.json
 
       - name: Meta ABテスト評価スクリプトを実行
         env:
