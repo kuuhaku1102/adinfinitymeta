@@ -7,7 +7,10 @@ from oauth2client.service_account import ServiceAccountCredentials
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 
+# --- Account IDの取得 ---
 def get_account_ids():
     if ACCOUNT_IDS:
         return [aid.strip() for aid in ACCOUNT_IDS.split(',') if aid.strip()]
@@ -16,8 +19,6 @@ def get_account_ids():
     else:
         print("[警告] ACCOUNT_IDまたはACCOUNT_IDSが未設定です")
         return []
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
-SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 
 # --- Google Sheets ---
 def get_sheet():
@@ -29,15 +30,19 @@ def get_sheet():
 
 def write_to_sheet(ad, cpa, image_url):
     sheet = get_sheet()
-    existing_rows = sheet.get_all_values()
-    if not existing_rows or not existing_rows[0]:
+    if not sheet.row_values(1):  # ヘッダーがなければ追加
         sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
     sheet.append_row([ad['id'], ad['name'], cpa if cpa is not None else "N/A", image_url, ""])
 
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-    params = {"fields": "id,name", "limit": 50, "access_token": ACCESS_TOKEN}
+    params = {
+        "fields": "id,name,effective_status",
+        "limit": 50,
+        "effective_status": ["ACTIVE"],  # ACTIVEな広告のみ取得
+        "access_token": ACCESS_TOKEN
+    }
     res = requests.get(url, params=params)
     print("📥 ステータス:", res.status_code)
     print("📥 Ads List:", res.text)
@@ -120,7 +125,7 @@ def send_slack_notice(ad, cpa, image_url, label):
     res = requests.post(SLACK_WEBHOOK_URL, json=payload)
     print("Slack通知結果:", res.status_code)
 
-# --- Main Execution ---
+# --- 各アカウントの評価 ---
 def evaluate_account(account_id):
     print(f"=== {account_id} の広告を評価中 ===")
     ads = fetch_ad_ids(account_id)
@@ -150,6 +155,7 @@ def evaluate_account(account_id):
             send_slack_notice(ad, cpa, image_url, label="STOP候補")
             write_to_sheet(ad, cpa, image_url)
 
+# --- Main Entry Point ---
 def main():
     for aid in get_account_ids():
         evaluate_account(aid)
