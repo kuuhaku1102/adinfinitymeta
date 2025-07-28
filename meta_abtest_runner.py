@@ -37,7 +37,7 @@ def write_to_sheet(ad, cpa, image_url):
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-    # ✅ 修正: list of tuples 形式で配列パラメータを指定
+    # ✅ Meta API仕様に準拠した配列形式パラメータ渡し
     params = [
         ("fields", "id,name,effective_status"),
         ("limit", 50),
