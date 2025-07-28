@@ -30,19 +30,20 @@ def get_sheet():
 
 def write_to_sheet(ad, cpa, image_url):
     sheet = get_sheet()
-    if not sheet.row_values(1):  # ヘッダーがなければ追加
+    if not sheet.row_values(1):
         sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
     sheet.append_row([ad['id'], ad['name'], cpa if cpa is not None else "N/A", image_url, ""])
 
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id):
     url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-    params = {
-        "fields": "id,name,effective_status",
-        "limit": 50,
-        "effective_status": "ACTIVE",  # ✅ 修正：リストではなく文字列に
-        "access_token": ACCESS_TOKEN
-    }
+    # ✅ 修正: list of tuples 形式で配列パラメータを指定
+    params = [
+        ("fields", "id,name,effective_status"),
+        ("limit", 50),
+        ("access_token", ACCESS_TOKEN),
+        ("effective_status", "ACTIVE")
+    ]
     res = requests.get(url, params=params)
     print("📥 ステータス:", res.status_code)
     print("📥 Ads List:", res.text)
@@ -135,16 +136,13 @@ def evaluate_account(account_id):
         ad["insights"] = insights
         ads_with_insights.append(ad)
 
-    # 成果 or CTRを評価
     ads_with_metrics = []
     for ad in ads_with_insights:
         cpa, ctr = calculate_metrics(ad)
         ads_with_metrics.append((ad, cpa, ctr))
 
-    # 勝者の抽出（CVありならCPAで、CVなしでもCTR上位5位）
     with_cpa = [entry for entry in ads_with_metrics if entry[1] is not None]
     without_cpa = [entry for entry in ads_with_metrics if entry[1] is None]
-
     top_ctr_no_cv = sorted(without_cpa, key=lambda x: x[2], reverse=True)[:5]
     winners = [entry[0] for entry in sorted(with_cpa, key=lambda x: x[1])[:1] + top_ctr_no_cv]
 
