@@ -3,11 +3,11 @@ import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 環境変数の読み込み（固定に書き換えたバージョン）
+# 固定設定
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
-CAMPAIGN_IDS = "120230617419590484"  # ← 固定されたキャンペーンID
+CAMPAIGN_IDS = "120230617419590484"  # ← 固定のキャンペーンID
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 
@@ -36,24 +36,6 @@ def get_sheet():
     sheet = client.open_by_url(SPREADSHEET_URL).sheet1
     return sheet
 
-def write_to_sheet(ad, cpa, image_url):
-    sheet = get_sheet()
-    if not sheet.row_values(1):
-        sheet.append_row(["広告キャンペーン", "広告グループ", "広告ID", "広告名", "CPA", "画像URL"])
-    
-    ad_details = fetch_ad_details(ad['id'])
-    campaign_name = fetch_campaign_name(ad_details.get("campaign_id", ""))
-    adset_name = fetch_adset_name(ad_details.get("adset_id", ""))
-
-    sheet.append_row([
-        campaign_name,
-        adset_name,
-        ad['id'],
-        ad['name'],
-        cpa if cpa is not None else "N/A",
-        image_url
-    ])
-
 def write_rows_to_sheet(rows):
     sheet = get_sheet()
     if not sheet.row_values(1):
@@ -63,18 +45,20 @@ def write_rows_to_sheet(rows):
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id, campaign_ids=None):
     ads = []
-    if campaign_ids is not None and len(campaign_ids) > 0:
+    if campaign_ids and len(campaign_ids) > 0:
         for cid in campaign_ids:
             url = f"https://graph.facebook.com/v19.0/{cid}/ads"
             params = [
                 ("fields", "id,name,effective_status"),
                 ("limit", 50),
                 ("access_token", ACCESS_TOKEN),
-                ("effective_status", "['ACTIVE']")
+                ("effective_status", "['ACTIVE']")  # 元のまま使用
             ]
             res = requests.get(url, params=params)
             print(f"キャンペーン {cid} の広告取得ステータス:", res.status_code)
-            ads.extend(res.json().get("data", []))
+            print("レスポンス内容:", res.text)  # ← ここで詳細確認
+            if res.status_code == 200:
+                ads.extend(res.json().get("data", []))
         return ads
     else:
         print(f"[スキップ] campaign_ids が空または未指定のため、アカウント {account_id} の広告取得をスキップ")
@@ -114,7 +98,7 @@ def fetch_adset_name(adset_id):
     res = requests.get(url, params=params)
     return res.json().get("name", "不明な広告セット")
 
-# --- Logic ---
+# --- Metrics Calculation ---
 def calculate_metrics(ad):
     try:
         insights = ad.get("insights", {})
@@ -158,10 +142,9 @@ def send_slack_notice(ad, cpa, image_url, label):
     res = requests.post(SLACK_WEBHOOK_URL, json=payload)
     print("Slack通知結果:", res.status_code)
 
-# --- 各アカウントの評価 ---
+# --- 広告評価ロジック ---
 def evaluate_account(account_id):
     print(f"=== {account_id} の広告を評価中 ===")
-
     campaign_ids = get_campaign_ids()
     if not campaign_ids:
         print(f"[スキップ] {account_id} の広告は、キャンペーンIDが未指定のため評価対象外")
