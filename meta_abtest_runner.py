@@ -53,7 +53,6 @@ def write_to_sheet(ad, cpa, image_url):
 def write_rows_to_sheet(rows):
     """複数行をまとめて Google Sheets に書き込む関数。"""
     sheet = get_sheet()
-    # ヘッダーが無ければ追加
     if not sheet.row_values(1):
         sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
     sheet.append_rows(rows, value_input_option='USER_ENTERED')
@@ -61,12 +60,11 @@ def write_rows_to_sheet(rows):
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id, campaign_ids=None):
     """
-    アカウントまたは特定キャンペーンから広告IDを取得する。
-    campaign_ids が指定されていれば /<campaign_id>/ads エンドポイントを使う。
+    指定された campaign_ids の広告のみを取得する。
+    campaign_ids が空または None の場合はスキップ。
     """
     ads = []
-    if campaign_ids:
-        # キャンペーン単位で広告を取得
+    if campaign_ids is not None and len(campaign_ids) > 0:
         for cid in campaign_ids:
             url = f"https://graph.facebook.com/v19.0/{cid}/ads"
             params = [
@@ -80,17 +78,8 @@ def fetch_ad_ids(account_id, campaign_ids=None):
             ads.extend(res.json().get("data", []))
         return ads
     else:
-        # アカウント全体の広告を取得
-        url = f"https://graph.facebook.com/v19.0/{account_id}/ads"
-        params = [
-            ("fields", "id,name,effective_status,campaign_id"),
-            ("limit", 50),
-            ("access_token", ACCESS_TOKEN),
-            ("effective_status", "['ACTIVE']")
-        ]
-        res = requests.get(url, params=params)
-        print("アカウントの広告取得ステータス:", res.status_code)
-        return res.json().get("data", [])
+        print(f"[スキップ] campaign_ids が空または未指定のため、アカウント {account_id} の広告取得をスキップ")
+        return []
 
 def fetch_ad_insights(ad_id):
     url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
@@ -175,9 +164,13 @@ def send_slack_notice(ad, cpa, image_url, label):
 def evaluate_account(account_id):
     print(f"=== {account_id} の広告を評価中 ===")
 
-    # CAMPAIGN_IDS が設定されていればそのキャンペーンだけ取得
+    # CAMPAIGN_IDS が設定されていなければスキップ
     campaign_ids = get_campaign_ids()
-    ads = fetch_ad_ids(account_id, campaign_ids=campaign_ids if campaign_ids else None)
+    if not campaign_ids:
+        print(f"[スキップ] {account_id} の広告は、キャンペーンIDが未指定のため評価対象外")
+        return
+
+    ads = fetch_ad_ids(account_id, campaign_ids=campaign_ids)
 
     # 広告ごとの insights 取得
     ads_with_insights = []
@@ -213,7 +206,6 @@ def evaluate_account(account_id):
                 ""
             ])
 
-    # まとめてシートに書き込み
     if rows_to_write:
         write_rows_to_sheet(rows_to_write)
 
