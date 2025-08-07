@@ -3,11 +3,11 @@ import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 環境変数の読み込み
+# 環境変数の読み込み（固定に書き換えたバージョン）
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
-CAMPAIGN_IDS = os.getenv("CAMPAIGN_IDS")  # ★特定キャンペーンID（カンマ区切り）
+CAMPAIGN_IDS = "120230617419590484"  # ← ここを直接固定値に変更
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 
