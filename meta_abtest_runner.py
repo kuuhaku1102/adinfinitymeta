@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
-CAMPAIGN_IDS = "120230617419590484"  # ← ここを直接固定値に変更
+CAMPAIGN_IDS = "120230617419590484"  # ← 固定されたキャンペーンID
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
 
@@ -23,7 +23,6 @@ def get_account_ids():
 
 # --- Campaign IDの取得 ---
 def get_campaign_ids():
-    """環境変数 CAMPAIGN_IDS をカンマ区切りでリスト化。未指定なら空リスト。"""
     if CAMPAIGN_IDS:
         return [cid.strip() for cid in CAMPAIGN_IDS.split(',') if cid.strip()]
     return []
@@ -38,31 +37,31 @@ def get_sheet():
     return sheet
 
 def write_to_sheet(ad, cpa, image_url):
-    """従来の1行書き込み関数（現在は使用しないが残しておく）。"""
     sheet = get_sheet()
     if not sheet.row_values(1):
-        sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
+        sheet.append_row(["広告キャンペーン", "広告グループ", "広告ID", "広告名", "CPA", "画像URL"])
+    
+    ad_details = fetch_ad_details(ad['id'])
+    campaign_name = fetch_campaign_name(ad_details.get("campaign_id", ""))
+    adset_name = fetch_adset_name(ad_details.get("adset_id", ""))
+
     sheet.append_row([
+        campaign_name,
+        adset_name,
         ad['id'],
         ad['name'],
         cpa if cpa is not None else "N/A",
-        image_url,
-        ""
+        image_url
     ])
 
 def write_rows_to_sheet(rows):
-    """複数行をまとめて Google Sheets に書き込む関数。"""
     sheet = get_sheet()
     if not sheet.row_values(1):
-        sheet.append_row(["広告ID", "広告名", "CPA", "画像URL", "承認"])
+        sheet.append_row(["広告キャンペーン", "広告グループ", "広告ID", "広告名", "CPA", "画像URL"])
     sheet.append_rows(rows, value_input_option='USER_ENTERED')
 
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id, campaign_ids=None):
-    """
-    指定された campaign_ids の広告のみを取得する。
-    campaign_ids が空または None の場合はスキップ。
-    """
     ads = []
     if campaign_ids is not None and len(campaign_ids) > 0:
         for cid in campaign_ids:
@@ -93,8 +92,7 @@ def fetch_ad_insights(ad_id):
     return res.json().get("data", [])[0] if res.json().get("data") else {}
 
 def fetch_creative_image_url(ad_id):
-    url = (f"https://graph.facebook.com/v19.0/{ad_id}"
-           f"?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}")
+    url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}"
     res = requests.get(url)
     return res.json().get("creative", {}).get("thumbnail_url", "画像なし")
 
@@ -164,7 +162,6 @@ def send_slack_notice(ad, cpa, image_url, label):
 def evaluate_account(account_id):
     print(f"=== {account_id} の広告を評価中 ===")
 
-    # CAMPAIGN_IDS が設定されていなければスキップ
     campaign_ids = get_campaign_ids()
     if not campaign_ids:
         print(f"[スキップ] {account_id} の広告は、キャンペーンIDが未指定のため評価対象外")
@@ -172,20 +169,17 @@ def evaluate_account(account_id):
 
     ads = fetch_ad_ids(account_id, campaign_ids=campaign_ids)
 
-    # 広告ごとの insights 取得
     ads_with_insights = []
     for ad in ads:
         insights = fetch_ad_insights(ad["id"])
         ad["insights"] = insights
         ads_with_insights.append(ad)
 
-    # 指標計算
     ads_with_metrics = []
     for ad in ads_with_insights:
         cpa, ctr = calculate_metrics(ad)
         ads_with_metrics.append((ad, cpa, ctr))
 
-    # winner を選定
     with_cpa = [entry for entry in ads_with_metrics if entry[1] is not None]
     without_cpa = [entry for entry in ads_with_metrics if entry[1] is None]
 
@@ -198,12 +192,18 @@ def evaluate_account(account_id):
             image_url = fetch_creative_image_url(ad["id"])
             print(f"[通知] {ad['name']} - CPA: {cpa} CTR: {ctr}")
             send_slack_notice(ad, cpa, image_url, label="STOP候補")
+
+            ad_details = fetch_ad_details(ad['id'])
+            campaign_name = fetch_campaign_name(ad_details.get("campaign_id", ""))
+            adset_name = fetch_adset_name(ad_details.get("adset_id", ""))
+
             rows_to_write.append([
+                campaign_name,
+                adset_name,
                 ad['id'],
                 ad['name'],
                 cpa if cpa is not None else "N/A",
-                image_url,
-                ""
+                image_url
             ])
 
     if rows_to_write:
