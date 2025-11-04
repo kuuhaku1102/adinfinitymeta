@@ -153,11 +153,18 @@ def calculate_metrics(ad):
         print("❌ 指標計算エラー:", e)
         return None, 0
 
-def send_slack_notice(ad, cpa, image_url, label):
+def post_slack_message(text):
     if not SLACK_WEBHOOK_URL:
         print("[警告] SLACK_WEBHOOK_URLが未設定です")
-        return
+        return False
 
+    payload = {"text": text}
+    res = requests.post(SLACK_WEBHOOK_URL, json=payload)
+    print("Slack通知結果:", res.status_code)
+    return res.status_code == 200
+
+
+def send_slack_notice(ad, cpa, image_url, label):
     if not ACCESS_TOKEN:
         print("[警告] ACCESS_TOKENが未設定のため、広告詳細を取得できずSlack通知をスキップします")
         return
@@ -178,9 +185,14 @@ def send_slack_notice(ad, cpa, image_url, label):
 
 👉 [広告停止の承認はこちら]({SPREADSHEET_URL})
 """
-    payload = {"text": text}
-    res = requests.post(SLACK_WEBHOOK_URL, json=payload)
-    print("Slack通知結果:", res.status_code)
+    post_slack_message(text)
+
+
+def notify_no_stop_candidates(account_id, reason=None):
+    message = ["*📣 Meta広告通知 [停止対象なし]*", "", f"*アカウントID*: {account_id}", "指定された条件で停止対象の広告は見つかりませんでした。"]
+    if reason:
+        message.extend(["", f"補足: {reason}"])
+    post_slack_message("\n".join(message))
 
 # --- 広告評価ロジック ---
 def evaluate_account(account_id):
@@ -188,9 +200,14 @@ def evaluate_account(account_id):
     campaign_ids = get_campaign_ids()
     if not campaign_ids:
         print(f"[スキップ] {account_id} の広告は、キャンペーンIDが未指定のため評価対象外")
+        notify_no_stop_candidates(account_id, "キャンペーンIDが未指定です")
         return
 
     ads = fetch_ad_ids(account_id, campaign_ids=campaign_ids)
+
+    if not ads:
+        notify_no_stop_candidates(account_id, "アクティブな広告を取得できませんでした")
+        return
 
     ads_with_insights = []
     for ad in ads:
@@ -231,6 +248,8 @@ def evaluate_account(account_id):
 
     if rows_to_write:
         write_rows_to_sheet(rows_to_write)
+    else:
+        notify_no_stop_candidates(account_id)
 
 # --- Main Entry Point ---
 def main():
