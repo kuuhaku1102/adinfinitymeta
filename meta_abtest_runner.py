@@ -2,7 +2,14 @@ import os
 
 import requests
 import gspread
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    def load_dotenv(*args, **kwargs):
+        """Fallback when python-dotenv is not installed."""
+        print("[警告] python-dotenvが未インストールのため、.env読み込みをスキップします")
+        return False
 from oauth2client.service_account import ServiceAccountCredentials
 
 # 固定設定
