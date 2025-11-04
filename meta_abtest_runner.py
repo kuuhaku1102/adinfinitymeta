@@ -1,15 +1,22 @@
-import requests
 import os
+
+import requests
 import gspread
+from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
 # 固定設定
+load_dotenv()
+
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
 CAMPAIGN_IDS = "120230617419590484,120230628398320484,120231962646350484"  # ← 固定のキャンペーンID
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
+
+if not ACCESS_TOKEN:
+    print("[警告] ACCESS_TOKENが未設定のため、Meta APIへのアクセスはスキップされます")
 
 # --- Account IDの取得 ---
 def get_account_ids():
@@ -29,21 +36,35 @@ def get_campaign_ids():
 
 # --- Google Sheets ---
 def get_sheet():
+    if not SPREADSHEET_URL:
+        print("[警告] SPREADSHEET_URLが未設定のため、スプレッドシートへの書き込みをスキップします")
+        return None
+
     scope = ['https://spreadsheets.google.com/feeds',
              'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-    client = gspread.authorize(creds)
-    sheet = client.open_by_url(SPREADSHEET_URL).sheet1
-    return sheet
+    try:
+        creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+        client = gspread.authorize(creds)
+        sheet = client.open_by_url(SPREADSHEET_URL).sheet1
+        return sheet
+    except Exception as e:
+        print("[警告] スプレッドシートへの接続に失敗しました:", e)
+        return None
 
 def write_rows_to_sheet(rows):
     sheet = get_sheet()
+    if not sheet:
+        return
+
     if not sheet.row_values(1):
         sheet.append_row(["広告キャンペーン", "広告グループ", "広告ID", "広告名", "CPA", "画像URL"])
     sheet.append_rows(rows, value_input_option='USER_ENTERED')
 
 # --- Meta API Fetch Functions ---
 def fetch_ad_ids(account_id, campaign_ids=None):
+    if not ACCESS_TOKEN:
+        return []
+
     ads = []
     if campaign_ids and len(campaign_ids) > 0:
         for cid in campaign_ids:
@@ -65,6 +86,9 @@ def fetch_ad_ids(account_id, campaign_ids=None):
         return []
 
 def fetch_ad_insights(ad_id):
+    if not ACCESS_TOKEN:
+        return {}
+
     url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
     params = {
         "fields": "impressions,clicks,spend,actions,cost_per_action_type",
@@ -76,23 +100,35 @@ def fetch_ad_insights(ad_id):
     return res.json().get("data", [])[0] if res.json().get("data") else {}
 
 def fetch_creative_image_url(ad_id):
+    if not ACCESS_TOKEN:
+        return "画像なし"
+
     url = f"https://graph.facebook.com/v19.0/{ad_id}?fields=creative{{thumbnail_url}}&access_token={ACCESS_TOKEN}"
     res = requests.get(url)
     return res.json().get("creative", {}).get("thumbnail_url", "画像なし")
 
 def fetch_ad_details(ad_id):
+    if not ACCESS_TOKEN:
+        return {}
+
     url = f"https://graph.facebook.com/v19.0/{ad_id}"
     params = {"fields": "name,campaign_id,adset_id", "access_token": ACCESS_TOKEN}
     res = requests.get(url, params=params)
     return res.json()
 
 def fetch_campaign_name(campaign_id):
+    if not ACCESS_TOKEN:
+        return "不明なキャンペーン"
+
     url = f"https://graph.facebook.com/v19.0/{campaign_id}"
     params = {"fields": "name", "access_token": ACCESS_TOKEN}
     res = requests.get(url, params=params)
     return res.json().get("name", "不明なキャンペーン")
 
 def fetch_adset_name(adset_id):
+    if not ACCESS_TOKEN:
+        return "不明な広告セット"
+
     url = f"https://graph.facebook.com/v19.0/{adset_id}"
     params = {"fields": "name", "access_token": ACCESS_TOKEN}
     res = requests.get(url, params=params)
@@ -120,6 +156,10 @@ def calculate_metrics(ad):
 def send_slack_notice(ad, cpa, image_url, label):
     if not SLACK_WEBHOOK_URL:
         print("[警告] SLACK_WEBHOOK_URLが未設定です")
+        return
+
+    if not ACCESS_TOKEN:
+        print("[警告] ACCESS_TOKENが未設定のため、広告詳細を取得できずSlack通知をスキップします")
         return
 
     ad_id = ad['id']
@@ -194,6 +234,10 @@ def evaluate_account(account_id):
 
 # --- Main Entry Point ---
 def main():
+    if not ACCESS_TOKEN:
+        print("[警告] ACCESS_TOKENが未設定のため、評価処理を終了します")
+        return
+
     for aid in get_account_ids():
         evaluate_account(aid)
 
