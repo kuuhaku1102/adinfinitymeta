@@ -131,6 +131,13 @@ def create_v2_adset(original_adset):
     v2_name = f"{original_name}V2"
     campaign_id = original_adset.get("campaign_id")
     
+    print(f"デバッグ: campaign_id = {campaign_id}")
+    print(f"デバッグ: original_adset keys = {list(original_adset.keys())}")
+    
+    if not campaign_id:
+        print("❌ campaign_idが取得できませんでした")
+        return None
+    
     url = f"https://graph.facebook.com/v21.0/{campaign_id}/adsets"
     
     payload = {
