@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta広告停止承認システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            font-size: 1.5em;
+        }
+        
+        .ad-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .ad-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .ad-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+        
+        .ad-info {
+            flex: 1;
+        }
+        
+        .ad-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        
+        .ad-details {
+            color: #6c757d;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+        
+        .ad-details div {
+            margin-bottom: 5px;
+        }
+        
+        .ad-image {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-left: 20px;
+            border: 2px solid #dee2e6;
+        }
+        
+        .ad-metrics {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        .cpa {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+        
+        .btn-approve {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-approve:hover {
+            background: #218838;
+            transform: scale(1.02);
+        }
+        
+        .btn-reject {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-reject:hover {
+            background: #c82333;
+            transform: scale(1.02);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+        
+        .timestamp {
+            font-size: 0.85em;
+            color: #adb5bd;
+            margin-top: 10px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: #28a745;
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            background: #5568d3;
+            transform: rotate(180deg) scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Meta広告停止承認システム</h1>
+        
+        <!-- 承認待ち -->
+        <div class="section">
+            <h2>⏳ 承認待ち ({{ pending|length }}件)</h2>
+            {% if pending %}
+                {% for ad in pending %}
+                <div class="ad-card" id="ad-{{ ad.ad_id }}">
+                    <div class="ad-header">
+                        <div class="ad-info">
+                            <div class="ad-name">{{ ad.ad_name }}</div>
+                            <div class="ad-details">
+                                <div><strong>キャンペーン:</strong> {{ ad.campaign_name }}</div>
+                                <div><strong>広告セット:</strong> {{ ad.adset_name }}</div>
+                                <div><strong>広告ID:</strong> <code>{{ ad.ad_id }}</code></div>
+                            </div>
+                            <div class="ad-metrics">
+                                <strong>CPA:</strong> 
+                                <span class="cpa">
+                                    {% if ad.cpa %}¥{{ "%.2f"|format(ad.cpa) }}{% else %}N/A{% endif %}
+                                </span>
+                            </div>
+                            <div class="timestamp">検出日時: {{ ad.created_at }}</div>
+                        </div>
+                        {% if ad.image_url and ad.image_url != "画像なし" %}
+                        <img src="{{ ad.image_url }}" alt="広告画像" class="ad-image" onerror="this.style.display='none'">
+                        {% endif %}
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-approve" onclick="approveAd('{{ ad.ad_id }}')">
+                            ✅ 停止を承認
+                        </button>
+                        <button class="btn-reject" onclick="rejectAd('{{ ad.ad_id }}')">
+                            ❌ 却下
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    承認待ちの広告はありません
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- 承認済み -->
+        <div class="section">
+            <h2>✅ 承認済み ({{ approved|length }}件)</h2>
+            {% if approved %}
+                {% for ad in approved %}
+                <div class="ad-card">
+                    <div class="ad-header">
+                        <div class="ad-info">
+                            <div class="ad-name">{{ ad.ad_name }}</div>
+                            <div class="ad-details">
+                                <div><strong>広告ID:</strong> <code>{{ ad.ad_id }}</code></div>
+                                <div><strong>CPA:</strong> {% if ad.cpa %}¥{{ "%.2f"|format(ad.cpa) }}{% else %}N/A{% endif %}</div>
+                            </div>
+                            <span class="status-badge status-approved">承認済み</span>
+                            <div class="timestamp">承認日時: {{ ad.approved_at }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    承認済みの広告はありません
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- 却下済み -->
+        <div class="section">
+            <h2>❌ 却下済み ({{ rejected|length }}件)</h2>
+            {% if rejected %}
+                {% for ad in rejected %}
+                <div class="ad-card">
+                    <div class="ad-header">
+                        <div class="ad-info">
+                            <div class="ad-name">{{ ad.ad_name }}</div>
+                            <div class="ad-details">
+                                <div><strong>広告ID:</strong> <code>{{ ad.ad_id }}</code></div>
+                                <div><strong>CPA:</strong> {% if ad.cpa %}¥{{ "%.2f"|format(ad.cpa) }}{% else %}N/A{% endif %}</div>
+                            </div>
+                            <span class="status-badge status-rejected">却下済み</span>
+                            <div class="timestamp">却下日時: {{ ad.approved_at }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    却下済みの広告はありません
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <button class="refresh-btn" onclick="location.reload()" title="更新">🔄</button>
+    
+    <div class="notification" id="notification"></div>
+    
+    <script>
+        function showNotification(message, isSuccess = true) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.background = isSuccess ? '#28a745' : '#dc3545';
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+        
+        async function approveAd(adId) {
+            if (!confirm('この広告の停止を承認しますか？')) return;
+            
+            try {
+                const response = await fetch(`/api/approve/${adId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('✅ 承認しました');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showNotification('❌ ' + data.message, false);
+                }
+            } catch (error) {
+                showNotification('❌ エラーが発生しました', false);
+                console.error(error);
+            }
+        }
+        
+        async function rejectAd(adId) {
+            if (!confirm('この広告の停止を却下しますか？')) return;
+            
+            try {
+                const response = await fetch(`/api/reject/${adId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('❌ 却下しました');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showNotification('❌ ' + data.message, false);
+                }
+            } catch (error) {
+                showNotification('❌ エラーが発生しました', false);
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,7 +1,10 @@
 import os
+import json
+from datetime import datetime
 
 import requests
 import gspread
+from slack_reaction_helper import send_slack_message_with_bot
 
 try:
     from dotenv import load_dotenv
@@ -21,6 +24,9 @@ ACCOUNT_IDS = os.getenv("ACCOUNT_IDS")
 CAMPAIGN_IDS = "120231962646350484,120230617419590484"  # ← 固定のキャンペーンID
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 SPREADSHEET_URL = os.getenv("SPREADSHEET_URL")
+APPROVAL_WEB_URL = os.getenv("APPROVAL_WEB_URL", "http://localhost:5000")  # 承認用WebページのURL
+
+APPROVAL_FILE = "pending_approvals.json"
 
 if not ACCESS_TOKEN:
     print("[警告] ACCESS_TOKENが未設定のため、Meta APIへのアクセスはスキップされます")
@@ -40,6 +46,56 @@ def get_campaign_ids():
     if CAMPAIGN_IDS:
         return [cid.strip() for cid in CAMPAIGN_IDS.split(',') if cid.strip()]
     return []
+
+# --- JSON Approval Management ---
+def load_approvals():
+    """承認データを読み込む"""
+    if not os.path.exists(APPROVAL_FILE):
+        return []
+    try:
+        with open(APPROVAL_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"承認データ読み込みエラー: {e}")
+        return []
+
+def save_approvals(data):
+    """承認データを保存する"""
+    try:
+        with open(APPROVAL_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"承認データ保存エラー: {e}")
+        return False
+
+def add_pending_approval(ad_id, ad_name, campaign_name, adset_name, cpa, image_url):
+    """停止候補を承認待ちリストに追加"""
+    approvals = load_approvals()
+    
+    # 既に同じ広告IDが存在するかチェック
+    existing = next((a for a in approvals if a.get('ad_id') == ad_id), None)
+    if existing and existing.get('status') == 'pending':
+        print(f"ℹ️ 広告 {ad_id} は既に承認待ちリストに存在します")
+        return False
+    
+    new_approval = {
+        "ad_id": ad_id,
+        "ad_name": ad_name,
+        "campaign_name": campaign_name,
+        "adset_name": adset_name,
+        "cpa": cpa,
+        "image_url": image_url,
+        "status": "pending",
+        "created_at": datetime.now().isoformat(),
+        "approved_at": None,
+        "approved_by": None
+    }
+    
+    approvals.append(new_approval)
+    save_approvals(approvals)
+    print(f"✅ 広告 {ad_id} を承認待ちリストに追加しました")
+    return True
 
 # --- Google Sheets ---
 def get_sheet():
@@ -92,19 +148,39 @@ def fetch_ad_ids(account_id, campaign_ids=None):
         print(f"[スキップ] campaign_ids が空または未指定のため、アカウント {account_id} の広告取得をスキップ")
         return []
 
-def fetch_ad_insights(ad_id):
+def fetch_ad_insights(ad_id, date_preset="last_14d"):
     if not ACCESS_TOKEN:
         return {}
 
     url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
     params = {
         "fields": "impressions,clicks,spend,actions,cost_per_action_type",
-        "date_preset": "last_14d",
+        "date_preset": date_preset,
         "access_token": ACCESS_TOKEN
     }
     res = requests.get(url, params=params)
-    print(f"📊 Insights for {ad_id}:", res.text)
+    print(f"📊 Insights for {ad_id} ({date_preset}):", res.text)
     return res.json().get("data", [])[0] if res.json().get("data") else {}
+
+def fetch_lifetime_insights(ad_id):
+    """全期間のインサイトを取得"""
+    return fetch_ad_insights(ad_id, date_preset="lifetime")
+
+def has_lifetime_conversions(ad_id):
+    """全期間でコンバージョンがあるかチェック"""
+    insights = fetch_lifetime_insights(ad_id)
+    try:
+        conversions = next(
+            (int(a['value']) for a in insights.get("actions", [])
+             if a["action_type"] in ["lead", "onsite_conversion.lead_grouped"]),
+            0
+        )
+        has_cv = conversions > 0
+        print(f"✅ 広告 {ad_id} の全期間CV: {conversions} (保護: {has_cv})")
+        return has_cv
+    except Exception as e:
+        print(f"❌ 全期間CV確認エラー ({ad_id}):", e)
+        return False
 
 def fetch_creative_image_url(ad_id):
     if not ACCESS_TOKEN:
@@ -173,7 +249,7 @@ def post_slack_message(text):
 
 def send_slack_notice(ad, cpa, image_url, label):
     if not ACCESS_TOKEN:
-        print("[警告] ACCESS_TOKENが未設定のため、広告詳細を取得できずSlack通知をスキップします")
+        print("[警告] ACCESS_TOKENが未設定のため、広告詳細を取得できず、Slack通知をスキップします")
         return
 
     ad_id = ad['id']
@@ -190,9 +266,18 @@ def send_slack_notice(ad, cpa, image_url, label):
 *広告ID*: `{ad_id}`
 *画像URL*: {image_url}
 
-👉 [広告停止の承認はこちら]({SPREADSHEET_URL})
+👍 このメッセージに絵文字でリアクション:
+  ✅ = 停止を承認
+  ❌ = 却下
 """
-    post_slack_message(text)
+    
+    # Slack Bot Tokenを使ってメッセージを送信（メッセージIDを記録）
+    message_ts = send_slack_message_with_bot(text, ad_id)
+    
+    if not message_ts:
+        # Bot Tokenが使えない場合はWebhookで送信
+        print("⚠️  Bot Tokenが使えないため、Webhookで送信します")
+        post_slack_message(text)
 
 
 def notify_no_stop_candidates(account_id, reason=None):
@@ -227,23 +312,47 @@ def evaluate_account(account_id):
         cpa, ctr = calculate_metrics(ad)
         ads_with_metrics.append((ad, cpa, ctr))
 
+    # 全期間でCVがある広告を保護対象に追加
+    protected_ads = []
+    for ad, cpa, ctr in ads_with_metrics:
+        if has_lifetime_conversions(ad["id"]):
+            protected_ads.append(ad)
+    
     with_cpa = [entry for entry in ads_with_metrics if entry[1] is not None]
     without_cpa = [entry for entry in ads_with_metrics if entry[1] is None]
 
     top_ctr_no_cv = sorted(without_cpa, key=lambda x: x[2], reverse=True)[:5]
     winners = [entry[0] for entry in sorted(with_cpa, key=lambda x: x[1])[:1] + top_ctr_no_cv]
+    
+    # 全期間CVがある広告をwinnersに追加（重複を避ける）
+    for ad in protected_ads:
+        if ad not in winners:
+            winners.append(ad)
 
     rows_to_write = []
     for ad, cpa, ctr in ads_with_metrics:
         if ad not in winners:
             image_url = fetch_creative_image_url(ad["id"])
             print(f"[通知] {ad['name']} - CPA: {cpa} CTR: {ctr}")
-            send_slack_notice(ad, cpa, image_url, label="STOP候補")
-
+            
             ad_details = fetch_ad_details(ad['id'])
             campaign_name = fetch_campaign_name(ad_details.get("campaign_id", ""))
             adset_name = fetch_adset_name(ad_details.get("adset_id", ""))
+            
+            # JSONに承認待ちとして追加
+            add_pending_approval(
+                ad_id=ad['id'],
+                ad_name=ad['name'],
+                campaign_name=campaign_name,
+                adset_name=adset_name,
+                cpa=cpa,
+                image_url=image_url
+            )
+            
+            # Slack通知
+            send_slack_notice(ad, cpa, image_url, label="STOP候補")
 
+            # Google Sheetsへの追加（互換性のため保持）
             rows_to_write.append([
                 campaign_name,
                 adset_name,
