@@ -176,58 +176,28 @@ def fetch_ad_insights(ad_id, days=14):
         return {}
 
 
-def create_v2_adset(original_adset):
-    """V2広告セットを作成"""
-    original_name = original_adset.get("name", "")
+def create_v2_adset(original_adset_id, original_name):
+    """V2広告セットをコピーAPIで作成"""
     v2_name = f"{original_name}V2"
-    campaign_id = original_adset.get("campaign_id")
-    account_id = original_adset.get("account_id")
     
-    print(f"デバッグ: campaign_id = {campaign_id}")
-    print(f"デバッグ: account_id = {account_id}")
-    print(f"デバッグ: original_adset keys = {list(original_adset.keys())}")
-    
-    if not campaign_id:
-        print("❌ campaign_idが取得できませんでした")
-        return None
-    
-    if not account_id:
-        print("❌ account_idが取得できませんでした")
-        return None
-    
-    # 正しいエンドポイント: /act_{ad_account_id}/adsets
-    url = f"https://graph.facebook.com/v21.0/act_{account_id}/adsets"
+    # 広告セットコピーAPIを使用
+    url = f"https://graph.facebook.com/v21.0/{original_adset_id}/copies"
     
     payload = {
         "access_token": ACCESS_TOKEN,
-        "name": v2_name,
-        "campaign_id": campaign_id,
-        "targeting": json.dumps(original_adset.get("targeting", {})),
-        "billing_event": original_adset.get("billing_event", "IMPRESSIONS"),
-        "optimization_goal": original_adset.get("optimization_goal", "REACH"),
-        "status": "ACTIVE"
+        "deep_copy": "false",  # 子広告はコピーしない
+        "status_option": "ACTIVE",  # コピー後のステータス
+        "rename_options": json.dumps({
+            "rename_strategy": "CUSTOM",
+            "rename_suffix": "V2"
+        })
     }
-    
-    # 予算設定
-    if "daily_budget" in original_adset and original_adset["daily_budget"]:
-        payload["daily_budget"] = original_adset["daily_budget"]
-    elif "lifetime_budget" in original_adset and original_adset["lifetime_budget"]:
-        payload["lifetime_budget"] = original_adset["lifetime_budget"]
-    
-    # 入札設定
-    if "bid_amount" in original_adset and original_adset["bid_amount"]:
-        payload["bid_amount"] = original_adset["bid_amount"]
-        print(f"入札額を設定: {original_adset['bid_amount']}")
-    else:
-        # bid_amountがない場合はbid_strategyを設定
-        payload["bid_strategy"] = "LOWEST_COST_WITHOUT_CAP"
-        print("入札戦略を設定: LOWEST_COST_WITHOUT_CAP")
     
     try:
         res = api_request_with_retry("POST", url, data=payload)
         if res and res.status_code == 200:
             result = res.json()
-            new_adset_id = result.get("id")
+            new_adset_id = result.get("copied_adset_id")
             print(f"✅ V2広告セット作成成功: {v2_name} (ID: {new_adset_id})")
             return new_adset_id
         else:
@@ -376,7 +346,7 @@ def process_adset(adset_id):
     
     # V2広告セットを作成
     print(f"\nV2広告セットを作成中...")
-    v2_adset_id = create_v2_adset(adset_details)
+    v2_adset_id = create_v2_adset(adset_id, adset_name)
     
     if not v2_adset_id:
         print("❌ V2広告セットの作成に失敗しました")
