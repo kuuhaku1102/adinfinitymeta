@@ -188,7 +188,7 @@ def create_v2_adset(original_adset_id, original_name):
         "deep_copy": "false",  # 子広告はコピーしない
         "status_option": "ACTIVE",  # コピー後のステータス
         "rename_options": json.dumps({
-            "rename_strategy": "CUSTOM",
+            "rename_strategy": "ONLY_TOP_LEVEL_RENAME",
             "rename_suffix": "V2"
         })
     }
