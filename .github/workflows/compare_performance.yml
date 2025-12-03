@@ -1,1 +1,49 @@
+name: Compare AdSet Performance
 
+on:
+  # 手動実行
+  workflow_dispatch:
+  
+  # 定期実行（毎週月曜日 午前10時 JST = 午前1時 UTC）
+  schedule:
+    - cron: '0 1 * * 1'
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Download copy history
+        uses: actions/download-artifact@v3
+        with:
+          name: copy-results
+        continue-on-error: true
+      
+      - name: Compare performance
+        env:
+          ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: |
+          python3 compare_adset_performance.py
+      
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: comparison-results
+          path: |
+            ad_copy_history.json
+          retention-days: 30
