@@ -57,7 +57,7 @@ def fetch_adset_details(adset_id):
     url = f"https://graph.facebook.com/v21.0/{adset_id}"
     params = {
         "access_token": ACCESS_TOKEN,
-        "fields": "name,campaign_id,targeting,bid_amount,billing_event,optimization_goal,daily_budget,lifetime_budget,status"
+        "fields": "name,campaign_id,account_id,targeting,bid_amount,billing_event,optimization_goal,daily_budget,lifetime_budget,status"
     }
     
     try:
@@ -130,19 +130,27 @@ def create_v2_adset(original_adset):
     original_name = original_adset.get("name", "")
     v2_name = f"{original_name}V2"
     campaign_id = original_adset.get("campaign_id")
+    account_id = original_adset.get("account_id")
     
     print(f"デバッグ: campaign_id = {campaign_id}")
+    print(f"デバッグ: account_id = {account_id}")
     print(f"デバッグ: original_adset keys = {list(original_adset.keys())}")
     
     if not campaign_id:
         print("❌ campaign_idが取得できませんでした")
         return None
     
-    url = f"https://graph.facebook.com/v21.0/{campaign_id}/adsets"
+    if not account_id:
+        print("❌ account_idが取得できませんでした")
+        return None
+    
+    # 正しいエンドポイント: /act_{ad_account_id}/adsets
+    url = f"https://graph.facebook.com/v21.0/act_{account_id}/adsets"
     
     payload = {
         "access_token": ACCESS_TOKEN,
         "name": v2_name,
+        "campaign_id": campaign_id,
         "targeting": json.dumps(original_adset.get("targeting", {})),
         "billing_event": original_adset.get("billing_event", "IMPRESSIONS"),
         "optimization_goal": original_adset.get("optimization_goal", "REACH"),
