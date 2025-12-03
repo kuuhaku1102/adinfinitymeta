@@ -171,6 +171,16 @@ def main():
                     timeout=300  # 5分タイムアウト
                 )
                 
+                # 詳細出力を常に表示
+                print("\n" + "="*50)
+                print("[詳細出力]")
+                print("="*50)
+                print(result.stdout)
+                if result.stderr:
+                    print("\n[エラー出力]")
+                    print(result.stderr)
+                print("="*50 + "\n")
+                
                 if result.returncode == 0:
                     print(f"  ✅ 処理成功")
                     processed_adsets += 1
@@ -180,7 +190,6 @@ def main():
                         skipped_adsets += 1
                     else:
                         errors += 1
-                    print(f"  出力: {result.stdout}")
                 
             except subprocess.TimeoutExpired:
                 print(f"  ❌ タイムアウト（5分以上）")
