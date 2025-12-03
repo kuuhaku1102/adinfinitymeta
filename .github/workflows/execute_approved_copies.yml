@@ -1,0 +1,52 @@
+name: Execute Approved Copies
+
+on:
+  # 手動実行
+  workflow_dispatch:
+  
+  # 定期実行（毎時間）
+  schedule:
+    - cron: '0 * * * *'
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Download approval file
+        uses: actions/download-artifact@v4
+        with:
+          name: approval-requests
+          path: .
+        continue-on-error: true
+      
+      - name: Execute approved copies
+        env:
+          ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: |
+          echo "✅ 承認済みコピーを実行"
+          python3 execute_approved_copies.py
+      
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: copy-results
+          path: |
+            ad_copy_history.json
+            ad_copy_approvals.json
+          retention-days: 30
