@@ -114,10 +114,16 @@ def count_low_impression_ads(adset_id):
         low_imp_count = 0
         for ad in active_ads:
             ad_id = ad["id"]
+            # 全期間のデータを取得（過去2年間）
+            from datetime import datetime, timedelta
+            import json as json_lib
+            since = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+            until = datetime.now().strftime("%Y-%m-%d")
+            
             insights_url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
             insights_params = {
                 "fields": "impressions",
-                "date_preset": "lifetime",
+                "time_range": json_lib.dumps({"since": since, "until": until}),
                 "access_token": ACCESS_TOKEN
             }
             

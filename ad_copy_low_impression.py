@@ -101,11 +101,14 @@ def fetch_ads_in_adset(adset_id):
 
 def fetch_ad_insights(ad_id, days=14):
     """広告のインサイトを取得（全期間）"""
-    # 全期間のデータを取得（time_rangeを指定しない）
+    # 全期間のデータを取得（過去2年間で取得）
+    since = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+    until = datetime.now().strftime("%Y-%m-%d")
+    
     url = f"https://graph.facebook.com/v21.0/{ad_id}/insights"
     params = {
         "access_token": ACCESS_TOKEN,
-        "date_preset": "lifetime",
+        "time_range": json.dumps({"since": since, "until": until}),
         "fields": "impressions,spend,clicks,actions"
     }
     
