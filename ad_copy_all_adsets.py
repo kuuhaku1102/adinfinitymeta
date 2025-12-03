@@ -19,6 +19,31 @@ CAMPAIGN_IDS = os.getenv("CAMPAIGN_IDS", "").split(",")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")
 
+def fetch_campaign_info(campaign_id):
+    """キャンペーン情報を取得"""
+    if not ACCESS_TOKEN:
+        return None
+    
+    url = f"https://graph.facebook.com/v19.0/{campaign_id}"
+    params = {
+        "fields": "id,name,effective_status",
+        "access_token": ACCESS_TOKEN
+    }
+    
+    try:
+        res = requests.get(url, params=params)
+        data = res.json()
+        
+        if "error" in data:
+            print(f"❌ キャンペーン情報取得エラー: {data['error']['message']}")
+            return None
+        
+        return data
+    
+    except Exception as e:
+        print(f"❌ キャンペーン情報取得エラー: {e}")
+        return None
+
 def fetch_adsets_from_campaign(campaign_id):
     """キャンペーンから全広告セットを取得"""
     if not ACCESS_TOKEN:
@@ -110,7 +135,16 @@ def main():
         if not campaign_id:
             continue
         
-        print(f"\n📣 キャンペーン {campaign_id} を処理中...")
+        # キャンペーン情報を取得
+        campaign_info = fetch_campaign_info(campaign_id)
+        if campaign_info:
+            campaign_name = campaign_info.get("name", "不明")
+            campaign_status = campaign_info.get("effective_status", "不明")
+            print(f"\n📣 キャンペーン: {campaign_name}")
+            print(f"   ID: {campaign_id}")
+            print(f"   ステータス: {campaign_status}")
+        else:
+            print(f"\n📣 キャンペーン {campaign_id} を処理中...")
         
         # 広告セットを取得
         adsets = fetch_adsets_from_campaign(campaign_id)
