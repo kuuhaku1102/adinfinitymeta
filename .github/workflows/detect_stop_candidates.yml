@@ -1,1 +1,49 @@
+name: Detect Ad Stop Candidates
 
+on:
+  # 手動実行
+  workflow_dispatch:
+  
+  # 定期実行（毎日午前9時 JST = 午前0時 UTC）
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run ad detection
+        env:
+          ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          ACCOUNT_IDS: ${{ secrets.ACCOUNT_ID }}
+          CAMPAIGN_IDS: ${{ secrets.CAMPAIGN_IDS }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SPREADSHEET_URL: ${{ secrets.SPREADSHEET_URL }}
+          GSHEET_JSON: ${{ secrets.GSHEET_JSON }}
+        run: |
+          python3 meta_abtest_runner.py
+      
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: detection-results
+          path: |
+            pending_approvals.json
+            slack_reactions.json
+          retention-days: 7
