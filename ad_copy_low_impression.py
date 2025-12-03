@@ -6,6 +6,7 @@
 import os
 import json
 import requests
+import time
 from datetime import datetime, timedelta
 
 try:
@@ -26,8 +27,47 @@ IMPRESSION_THRESHOLD = 500  # インプレッション閾値
 MIN_AD_COUNT = 4  # 最小広告数
 DATE_RANGE_DAYS = 14  # 使用しない（全期間で判定）
 
+# リトライ設定
+MAX_RETRIES = 3  # 最大リトライ回数
+RETRY_DELAY = 60  # リトライ間隔（秒）
+
 # コピー履歴ファイル
 COPY_HISTORY_FILE = "ad_copy_history.json"
+
+
+def api_request_with_retry(method, url, max_retries=MAX_RETRIES, **kwargs):
+    """レート制限エラーに対応したAPIリクエスト"""
+    for attempt in range(max_retries):
+        try:
+            if method.upper() == "GET":
+                res = requests.get(url, **kwargs)
+            elif method.upper() == "POST":
+                res = requests.post(url, **kwargs)
+            else:
+                raise ValueError(f"サポートされていないメソッド: {method}")
+            
+            # レート制限エラーをチェック
+            if res.status_code == 429 or (res.status_code == 400 and "User request limit reached" in res.text):
+                if attempt < max_retries - 1:
+                    wait_time = RETRY_DELAY * (attempt + 1)
+                    print(f"⚠️  レート制限エラー。{wait_time}秒待機してリトライします... ({attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"❌ リトライ回数上限に達しました")
+                    return res
+            
+            return res
+        
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"⚠️  リクエストエラー: {e}。リトライします... ({attempt + 1}/{max_retries})")
+                time.sleep(RETRY_DELAY)
+                continue
+            else:
+                raise
+    
+    return None
 
 
 def load_copy_history():
@@ -61,11 +101,11 @@ def fetch_adset_details(adset_id):
     }
     
     try:
-        res = requests.get(url, params=params)
-        if res.status_code == 200:
+        res = api_request_with_retry("GET", url, params=params)
+        if res and res.status_code == 200:
             return res.json()
         else:
-            print(f"❌ 広告セット詳細取得失敗: {res.status_code} - {res.text}")
+            print(f"❌ 広告セット詳細取得失敗: {res.status_code if res else 'None'} - {res.text if res else 'No response'}")
             return None
     except Exception as e:
         print(f"❌ 広告セット詳細取得エラー: {e}")
@@ -84,14 +124,14 @@ def fetch_ads_in_adset(adset_id):
     ads = []
     try:
         while url:
-            res = requests.get(url, params=params)
-            if res.status_code == 200:
+            res = api_request_with_retry("GET", url, params=params)
+            if res and res.status_code == 200:
                 data = res.json()
                 ads.extend(data.get("data", []))
                 url = data.get("paging", {}).get("next")
                 params = {}  # 次のページではparamsは不要
             else:
-                print(f"❌ 広告取得失敗: {res.status_code} - {res.text}")
+                print(f"❌ 広告取得失敗: {res.status_code if res else 'None'} - {res.text if res else 'No response'}")
                 break
     except Exception as e:
         print(f"❌ 広告取得エラー: {e}")
@@ -113,12 +153,12 @@ def fetch_ad_insights(ad_id, days=14):
     }
     
     try:
-        res = requests.get(url, params=params)
-        if res.status_code == 200:
+        res = api_request_with_retry("GET", url, params=params)
+        if res and res.status_code == 200:
             data = res.json().get("data", [])
             return data[0] if data else {}
         else:
-            print(f"⚠️  広告インサイト取得失敗 (ID: {ad_id}): {res.status_code}")
+            print(f"⚠️  広告インサイト取得失敗 (ID: {ad_id}): {res.status_code if res else 'None'}")
             return {}
     except Exception as e:
         print(f"❌ 広告インサイト取得エラー (ID: {ad_id}): {e}")
@@ -173,14 +213,14 @@ def create_v2_adset(original_adset):
         print("入札戦略を設定: LOWEST_COST_WITHOUT_CAP")
     
     try:
-        res = requests.post(url, data=payload)
-        if res.status_code == 200:
+        res = api_request_with_retry("POST", url, data=payload)
+        if res and res.status_code == 200:
             result = res.json()
             new_adset_id = result.get("id")
             print(f"✅ V2広告セット作成成功: {v2_name} (ID: {new_adset_id})")
             return new_adset_id
         else:
-            print(f"❌ V2広告セット作成失敗: {res.status_code} - {res.text}")
+            print(f"❌ V2広告セット作成失敗: {res.status_code if res else 'None'} - {res.text if res else 'No response'}")
             return None
     except Exception as e:
         print(f"❌ V2広告セット作成エラー: {e}")
@@ -198,14 +238,14 @@ def copy_ad_to_adset(ad_id, target_adset_id, ad_name):
     }
     
     try:
-        res = requests.post(url, data=payload)
-        if res.status_code == 200:
+        res = api_request_with_retry("POST", url, data=payload)
+        if res and res.status_code == 200:
             result = res.json()
             new_ad_id = result.get("copied_ad_id")
             print(f"  ✅ 広告コピー成功: {ad_name} → 新ID: {new_ad_id}")
             return new_ad_id
         else:
-            print(f"  ❌ 広告コピー失敗: {ad_name} - {res.status_code} - {res.text}")
+            print(f"  ❌ 広告コピー失敗: {ad_name} - {res.status_code if res else 'None'} - {res.text if res else 'No response'}")
             return None
     except Exception as e:
         print(f"  ❌ 広告コピーエラー: {ad_name} - {e}")
