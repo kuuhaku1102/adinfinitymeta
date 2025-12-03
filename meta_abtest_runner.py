@@ -163,8 +163,30 @@ def fetch_ad_insights(ad_id, date_preset="last_14d"):
     return res.json().get("data", [])[0] if res.json().get("data") else {}
 
 def fetch_lifetime_insights(ad_id):
-    """全期間のインサイトを取得"""
-    return fetch_ad_insights(ad_id, date_preset="lifetime")
+    """全期間のインサイトを取得（過去2年間）"""
+    if not ACCESS_TOKEN:
+        return {}
+    
+    # 過去2年間のデータを取得（lifetimeの代わり）
+    from datetime import datetime, timedelta
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=730)  # 2年間
+    
+    url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
+    params = {
+        "fields": "impressions,clicks,spend,actions,cost_per_action_type",
+        "time_range": f'{{"since":"{start_date.strftime("%Y-%m-%d")}","until":"{end_date.strftime("%Y-%m-%d")}"}}',
+        "access_token": ACCESS_TOKEN
+    }
+    
+    try:
+        res = requests.get(url, params=params)
+        print(f"📊 Lifetime Insights for {ad_id}:", res.text[:200])  # 最初の200文字だけ表示
+        data = res.json().get("data", [])
+        return data[0] if data else {}
+    except Exception as e:
+        print(f"❌ 全期間インサイト取得エラー ({ad_id}): {e}")
+        return {}
 
 def has_lifetime_conversions(ad_id):
     """全期間でコンバージョンがあるかチェック"""
