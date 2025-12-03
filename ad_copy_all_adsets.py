@@ -9,6 +9,7 @@
 import os
 import sys
 import requests
+import time
 from dotenv import load_dotenv
 
 # 環境変数を読み込み
@@ -18,6 +19,46 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 CAMPAIGN_IDS = os.getenv("CAMPAIGN_IDS", "").split(",")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")
+
+# リトライ設定
+MAX_RETRIES = 3
+RETRY_DELAY = 60
+
+
+def api_request_with_retry(method, url, max_retries=MAX_RETRIES, **kwargs):
+    """レート制限エラーに対応したAPIリクエスト"""
+    for attempt in range(max_retries):
+        try:
+            if method.upper() == "GET":
+                res = requests.get(url, **kwargs)
+            elif method.upper() == "POST":
+                res = requests.post(url, **kwargs)
+            else:
+                raise ValueError(f"サポートされていないメソッド: {method}")
+            
+            # レート制限エラーをチェック
+            if res.status_code == 429 or (res.status_code == 400 and "User request limit reached" in res.text):
+                if attempt < max_retries - 1:
+                    wait_time = RETRY_DELAY * (attempt + 1)
+                    print(f"⚠️  レート制限エラー。{wait_time}秒待機してリトライします... ({attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"❌ リトライ回数上限に達しました")
+                    return res
+            
+            return res
+        
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"⚠️  リクエストエラー: {e}。リトライします... ({attempt + 1}/{max_retries})")
+                time.sleep(RETRY_DELAY)
+                continue
+            else:
+                raise
+    
+    return None
+
 
 def check_token_permissions():
     """アクセストークンの権限を確認"""
@@ -112,7 +153,11 @@ def fetch_adsets_from_campaign(campaign_id):
     }
     
     try:
-        res = requests.get(url, params=params)
+        res = api_request_with_retry("GET", url, params=params)
+        if not res:
+            print(f"❌ キャンペーン {campaign_id} の広告セット取得失敗: レスポンスがありません")
+            return []
+        
         data = res.json()
         
         if "error" in data:
