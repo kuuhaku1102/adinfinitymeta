@@ -117,7 +117,7 @@ def count_low_impression_ads(adset_id):
             insights_url = f"https://graph.facebook.com/v19.0/{ad_id}/insights"
             insights_params = {
                 "fields": "impressions",
-                "date_preset": "last_14d",
+                "date_preset": "lifetime",
                 "access_token": ACCESS_TOKEN
             }
             

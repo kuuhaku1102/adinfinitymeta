@@ -24,7 +24,7 @@ SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")
 # 設定
 IMPRESSION_THRESHOLD = 500  # インプレッション閾値
 MIN_AD_COUNT = 4  # 最小広告数
-DATE_RANGE_DAYS = 14  # データ取得期間（日）
+DATE_RANGE_DAYS = 14  # 使用しない（全期間で判定）
 
 # コピー履歴ファイル
 COPY_HISTORY_FILE = "ad_copy_history.json"
@@ -100,14 +100,12 @@ def fetch_ads_in_adset(adset_id):
 
 
 def fetch_ad_insights(ad_id, days=14):
-    """広告のインサイトを取得"""
-    since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-    until = datetime.now().strftime("%Y-%m-%d")
-    
+    """広告のインサイトを取得（全期間）"""
+    # 全期間のデータを取得（time_rangeを指定しない）
     url = f"https://graph.facebook.com/v21.0/{ad_id}/insights"
     params = {
         "access_token": ACCESS_TOKEN,
-        "time_range": json.dumps({"since": since, "until": until}),
+        "date_preset": "lifetime",
         "fields": "impressions,spend,clicks,actions"
     }
     
@@ -271,7 +269,7 @@ def process_adset(adset_id):
         ad_id = ad["id"]
         ad_name = ad["name"]
         
-        insights = fetch_ad_insights(ad_id, DATE_RANGE_DAYS)
+        insights = fetch_ad_insights(ad_id)  # 全期間で取得
         impressions = int(insights.get("impressions", 0))
         
         print(f"  - {ad_name}: {impressions} imp")
