@@ -1,15 +1,20 @@
-name: Stop Approved Ads
+name: Copy Low Impression Ads
 
 on:
-  # 手動実行
+  # 手動実行（広告セットIDを指定）
   workflow_dispatch:
+    inputs:
+      adset_id:
+        description: '広告セットID'
+        required: true
+        type: string
   
-  # 定期実行（毎時間）
+  # 定期実行（毎週月曜日 午前9時 JST = 午前0時 UTC）
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 0 * * 1'
 
 jobs:
-  stop:
+  copy:
     runs-on: ubuntu-latest
     
     steps:
@@ -25,28 +30,26 @@ jobs:
         run: |
           pip install -r requirements.txt
       
-      - name: Download pending approvals
-        uses: actions/download-artifact@v4
-        with:
-          name: detection-results
-        continue-on-error: true
-      
-      - name: Stop approved ads
+      - name: Copy ads
         env:
           ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
-          ACCOUNT_IDS: ${{ secrets.ACCOUNT_ID }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TARGET_ADSET_ID: ${{ github.event.inputs.adset_id || secrets.DEFAULT_ADSET_ID }}
         run: |
-          python3 approved_stopper.py
+          if [ -z "$TARGET_ADSET_ID" ]; then
+            echo "⚠️  TARGET_ADSET_IDが未設定です"
+            echo "手動実行時は広告セットIDを指定してください"
+            echo "定期実行の場合はGitHub SecretsにDEFAULT_ADSET_IDを設定してください"
+            exit 1
+          fi
+          python3 ad_copy_low_impression.py
       
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stop-results
+          name: copy-results
           path: |
-            pending_approvals.json
-            slack_reactions.json
-          retention-days: 7
+            ad_copy_history.json
+          retention-days: 30
