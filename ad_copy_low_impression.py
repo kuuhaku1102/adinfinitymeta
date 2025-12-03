@@ -167,13 +167,13 @@ def create_v2_adset(original_adset):
 
 
 def copy_ad_to_adset(ad_id, target_adset_id, ad_name):
-    """広告を指定の広告セットにコピー（停止状態）"""
+    """広告を指定の広告セットにコピー（配信中状態）"""
     url = f"https://graph.facebook.com/v21.0/{ad_id}/copies"
     
     payload = {
         "access_token": ACCESS_TOKEN,
         "adset_id": target_adset_id,
-        "status_option": "PAUSED"  # 停止状態でコピー
+        "status_option": "ACTIVE"  # 配信中状態でコピー
     }
     
     try:
@@ -256,7 +256,8 @@ def process_adset(adset_id):
     
     # 広告を取得
     ads = fetch_ads_in_adset(adset_id)
-    print(f"広告数: {len(ads)}件")
+    active_ads = [ad for ad in ads if ad.get("status") == "ACTIVE"]
+    print(f"広告数: {len(ads)}件 (ACTIVE: {len(active_ads)}件)")
     
     if not ads:
         print("⚠️  広告が見つかりませんでした")
@@ -291,18 +292,14 @@ def process_adset(adset_id):
         send_slack_notification(message)
         return
     
-    # コピー後に元の広告セットに残る広告数をチェック
+    # コピー後に元の広告セットに残る広告数をチェック（全広告で判断）
     remaining_ads_count = len(ads) - len(low_impression_ads)
-    print(f"\nコピー後に残る広告数: {remaining_ads_count}件")
+    print(f"\nコピー後に残る広告数: {remaining_ads_count}件（全広告で判断）")
     
-    if remaining_ads_count <= 3:
-        print(f"⚠️  コピー後に広告が3個以下になるため、元の広告セットを停止します")
-        pause_adset(adset_id, adset_name)
-        
-        message = f"⚠️  広告セット停止\n\n*広告セット:* {adset_name}\n*理由:* コピー後に広告が{remaining_ads_count}個になるため\n*対象広告数:* {len(low_impression_ads)}件"
+    if remaining_ads_count == 0:
+        message = f"⚠️  広告コピースキップ\n\n*広告セット:* {adset_name}\n*理由:* コピー後に広告が0個になるため\n*対象広告数:* {len(low_impression_ads)}件"
+        print(f"\n{message}")
         send_slack_notification(message)
-        
-        # 停止した場合でもV2は作成しない
         return
     
     # V2広告セットを作成
