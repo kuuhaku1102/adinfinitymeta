@@ -19,6 +19,60 @@ CAMPAIGN_IDS = os.getenv("CAMPAIGN_IDS", "").split(",")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")
 
+def check_token_permissions():
+    """アクセストークンの権限を確認"""
+    if not ACCESS_TOKEN:
+        print("❌ ACCESS_TOKENが設定されていません")
+        return False
+    
+    print("\n" + "="*60)
+    print("🔍 アクセストークンの権限を確認中...")
+    print("="*60)
+    
+    url = "https://graph.facebook.com/v21.0/debug_token"
+    params = {
+        "input_token": ACCESS_TOKEN,
+        "access_token": ACCESS_TOKEN
+    }
+    
+    try:
+        res = requests.get(url, params=params)
+        if res.status_code == 200:
+            data = res.json()
+            token_data = data.get("data", {})
+            
+            scopes = token_data.get("scopes", [])
+            print(f"権限一覧 ({len(scopes)}個):")
+            for scope in sorted(scopes):
+                print(f"  ✓ {scope}")
+            
+            # 必要な権限をチェック
+            required_permissions = ["ads_management", "ads_read"]
+            missing_permissions = []
+            
+            for perm in required_permissions:
+                if perm in scopes:
+                    print(f"  ✅ {perm}: あり")
+                else:
+                    print(f"  ❌ {perm}: なし")
+                    missing_permissions.append(perm)
+            
+            print("="*60 + "\n")
+            
+            if missing_permissions:
+                print(f"❌ 以下の権限が不足しています: {', '.join(missing_permissions)}")
+                return False
+            
+            return True
+        else:
+            print(f"❌ トークン情報取得失敗: {res.status_code}")
+            print(f"レスポンス: {res.text}")
+            return False
+    
+    except Exception as e:
+        print(f"❌ エラー: {e}")
+        return False
+
 def fetch_campaign_info(campaign_id):
     """キャンペーン情報を取得"""
     if not ACCESS_TOKEN:
@@ -121,6 +175,11 @@ def main():
     
     if not CAMPAIGN_IDS or CAMPAIGN_IDS == [""]:
         print("❌ CAMPAIGN_IDSが設定されていません")
+        sys.exit(1)
+    
+    # 権限を確認
+    if not check_token_permissions():
+        print("❌ アクセストークンの権限が不足しています")
         sys.exit(1)
     
     # 統計情報
