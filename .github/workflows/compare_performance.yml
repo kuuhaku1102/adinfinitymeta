@@ -26,7 +26,7 @@ jobs:
           pip install -r requirements.txt
       
       - name: Download copy history
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: copy-results
         continue-on-error: true
@@ -41,7 +41,7 @@ jobs:
       
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: comparison-results
           path: |
