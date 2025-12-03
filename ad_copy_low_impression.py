@@ -208,28 +208,50 @@ def create_v2_adset(original_adset_id, original_name):
         return None
 
 
-def copy_ad_to_adset(ad_id, target_adset_id, ad_name):
-    """広告を指定の広告セットにコピー（配信中状態）"""
-    url = f"https://graph.facebook.com/v21.0/{ad_id}/copies"
-    
-    payload = {
+def copy_ad_to_adset(ad_id, target_adset_id, ad_name, ad_account_id):
+    """広告を指定の広告セットに新規作成（配信中状態）"""
+    # 元の広告からcreative_idを取得
+    ad_url = f"https://graph.facebook.com/v21.0/{ad_id}"
+    ad_params = {
         "access_token": ACCESS_TOKEN,
-        "adset_id": target_adset_id,
-        "status_option": "ACTIVE"  # 配信中状態でコピー
+        "fields": "creative,name"
     }
     
     try:
-        res = api_request_with_retry("POST", url, data=payload)
-        if res and res.status_code == 200:
-            result = res.json()
-            new_ad_id = result.get("copied_ad_id")
-            print(f"  ✅ 広告コピー成功: {ad_name} → 新ID: {new_ad_id}")
+        # 広告詳細を取得
+        ad_res = api_request_with_retry("GET", ad_url, params=ad_params)
+        if not ad_res or ad_res.status_code != 200:
+            print(f"  ❌ 広告詳細取得失敗: {ad_name}")
+            return None
+        
+        ad_data = ad_res.json()
+        creative_id = ad_data.get("creative", {}).get("id")
+        
+        if not creative_id:
+            print(f"  ❌ creative_idが取得できません: {ad_name}")
+            return None
+        
+        # 新しい広告を作成
+        create_url = f"https://graph.facebook.com/v21.0/act_{ad_account_id}/ads"
+        create_payload = {
+            "access_token": ACCESS_TOKEN,
+            "name": ad_name,
+            "adset_id": target_adset_id,
+            "creative": json.dumps({"creative_id": creative_id}),
+            "status": "ACTIVE"  # 配信中状態で作成
+        }
+        
+        create_res = api_request_with_retry("POST", create_url, data=create_payload)
+        if create_res and create_res.status_code == 200:
+            result = create_res.json()
+            new_ad_id = result.get("id")
+            print(f"  ✅ 広告作成成功: {ad_name} → 新ID: {new_ad_id}")
             return new_ad_id
         else:
-            print(f"  ❌ 広告コピー失敗: {ad_name} - {res.status_code if res else 'None'} - {res.text if res else 'No response'}")
+            print(f"  ❌ 広告作成失敗: {ad_name} - {create_res.status_code if create_res else 'None'} - {create_res.text if create_res else 'No response'}")
             return None
     except Exception as e:
-        print(f"  ❌ 広告コピーエラー: {ad_name} - {e}")
+        print(f"  ❌ 広告作成エラー: {ad_name} - {e}")
         return None
 
 
@@ -355,9 +377,10 @@ def process_adset(adset_id):
     # 広告をコピー
     print(f"\n広告をコピー中...")
     copied_ads = []
+    ad_account_id = adset_details.get("account_id")
     
     for ad in low_impression_ads:
-        new_ad_id = copy_ad_to_adset(ad["id"], v2_adset_id, ad["name"])
+        new_ad_id = copy_ad_to_adset(ad["id"], v2_adset_id, ad["name"], ad_account_id)
         if new_ad_id:
             copied_ads.append({
                 "original_id": ad["id"],
