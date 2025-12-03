@@ -39,12 +39,16 @@ def api_request_with_retry(method, url, max_retries=MAX_RETRIES, **kwargs):
     """レート制限エラーに対応したAPIリクエスト"""
     for attempt in range(max_retries):
         try:
+            print(f"🔄 APIリクエスト試行 {attempt + 1}/{max_retries}: {method} {url[:80]}...")
+            
             if method.upper() == "GET":
                 res = requests.get(url, **kwargs)
             elif method.upper() == "POST":
                 res = requests.post(url, **kwargs)
             else:
                 raise ValueError(f"サポートされていないメソッド: {method}")
+            
+            print(f"   ステータスコード: {res.status_code}")
             
             # レート制限エラーをチェック
             if res.status_code == 429 or (res.status_code == 400 and "User request limit reached" in res.text):
@@ -57,16 +61,23 @@ def api_request_with_retry(method, url, max_retries=MAX_RETRIES, **kwargs):
                     print(f"❌ リトライ回数上限に達しました")
                     return res
             
+            # その他のエラーをチェック
+            if res.status_code >= 400:
+                print(f"   ⚠️  エラーレスポンス: {res.text[:200]}")
+            
             return res
         
         except Exception as e:
+            print(f"   ❌ 例外発生: {type(e).__name__}: {e}")
             if attempt < max_retries - 1:
-                print(f"⚠️  リクエストエラー: {e}。リトライします... ({attempt + 1}/{max_retries})")
+                print(f"⚠️  リクエストエラー。リトライします... ({attempt + 1}/{max_retries})")
                 time.sleep(RETRY_DELAY)
                 continue
             else:
+                print(f"❌ リトライ回数上限に達しました。例外を発生させます。")
                 raise
     
+    print(f"❌ 全てのリトライが失敗しました")
     return None
 
 
