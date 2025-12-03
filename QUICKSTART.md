@@ -1,118 +1,105 @@
-# クイックスタートガイド 🚀
+# クイックスタート（5分で始める）
 
-最速で動かすための手順です。
+最速でMeta広告自動化システムを動かすためのガイドです。
 
-## 📋 前提条件
-
-- Python 3.7以上
-- Meta広告のアクセストークン
-- Slack Webhook URL
-
-## ⚡ 3ステップで起動
-
-### ステップ1: ngrokのインストール
+## 📦 1. リポジトリをクローン
 
 ```bash
-# macOS
-brew install ngrok/ngrok/ngrok
-
-# Linux
-wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-tar xvzf ngrok-v3-stable-linux-amd64.tgz
-sudo mv ngrok /usr/local/bin/
-
-# 認証（https://ngrok.com でアカウント作成後）
-ngrok config add-authtoken YOUR_AUTHTOKEN
+git clone https://github.com/kuuhaku1102/adinfinitymeta.git
+cd adinfinitymeta
 ```
 
-### ステップ2: 依存パッケージのインストール
+## 🔧 2. 依存関係をインストール
 
 ```bash
-cd /home/ubuntu/adinfinitymeta
-pip3 install flask requests gspread oauth2client python-dotenv
+pip3 install -r requirements.txt
 ```
 
-### ステップ3: システムの起動
+## 🔑 3. .envファイルを作成
 
 ```bash
-./start_with_ngrok.sh
+cat << 'EOF' > .env
+# Meta広告API
+ACCESS_TOKEN=ここにMeta Access Tokenを入力
+ACCOUNT_IDS=act_123456789
+
+# Slack Bot
+SLACK_BOT_TOKEN=xoxb-ここにSlack Bot Tokenを入力
+SLACK_CHANNEL_ID=C01234567890
+EOF
 ```
 
-画面に表示されるngrokのURL（例: `https://abc123.ngrok.io`）をコピーして、`.env`ファイルに設定：
+**必要な情報:**
+- **Meta Access Token**: [Meta Business Suite](https://business.facebook.com/) → システムユーザー → トークンを生成
+- **広告アカウントID**: [Meta広告マネージャ](https://adsmanager.facebook.com/) のURLから確認
+- **Slack Bot Token**: [Slack API](https://api.slack.com/apps) → OAuth & Permissions
+- **チャンネルID**: Slackのチャンネル情報から確認
+
+詳細は [SETUP_GUIDE.md](SETUP_GUIDE.md) を参照してください。
+
+## ✅ 4. 動作確認
 
 ```bash
-# .envファイル
-APPROVAL_WEB_URL=https://abc123.ngrok.io
+# Slack接続テスト
+python3 test_slack_bot.py
 ```
 
-## 🎯 使い方
+成功すると、Slackにテストメッセージが届きます。
 
-### 1. 停止候補を検出
+## 🚀 5. 実行
+
+### 広告停止候補の検出
 
 ```bash
 python3 meta_abtest_runner.py
 ```
 
-- 停止候補がSlackに通知されます
-- 通知にWeb UIへのリンクが含まれます
+Slackに通知が届いたら、✅または❌でリアクションしてください。
 
-### 2. Web UIで承認
-
-- Slackのリンクをクリック
-- 承認/却下ボタンをクリック
-
-### 3. 承認済み広告を停止
+### 承認済み広告の停止
 
 ```bash
 python3 approved_stopper.py
 ```
 
-- 承認済み広告が自動的に停止されます
-- Slackに完了通知が送信されます
+✅をつけた広告が停止されます。
 
-## 🔄 定期実行（オプション）
-
-cronで定期実行する場合：
+### 広告コピー（インプレッション500以下）
 
 ```bash
-crontab -e
+TARGET_ADSET_ID=123456789 python3 ad_copy_low_impression.py
 ```
 
-以下を追加：
-
-```bash
-# 毎日午前9時に停止候補を検出
-0 9 * * * cd /home/ubuntu/adinfinitymeta && python3 meta_abtest_runner.py
-
-# 毎時間、承認済み広告を停止
-0 * * * * cd /home/ubuntu/adinfinitymeta && python3 approved_stopper.py
-```
+V2広告セットが作成され、広告がコピーされます。
 
 ## 📚 詳細ドキュメント
 
-- **README.md**: システム全体の説明
-- **NGROK_SETUP.md**: ngrokの詳細セットアップ
-- **CHANGES.md**: 変更内容の詳細
-- **SUMMARY.md**: 実装内容のサマリー
+- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - 詳細なセットアップ手順
+- **[SLACK_REACTION_QUICKSTART.md](SLACK_REACTION_QUICKSTART.md)** - Slack承認機能の使い方
+- **[AD_COPY_GUIDE.md](AD_COPY_GUIDE.md)** - 広告コピー機能の使い方
+- **[README_SLACK_REACTION.md](README_SLACK_REACTION.md)** - 完全ガイド
 
-## 🆘 困ったら
+## 🆘 トラブルシューティング
 
-### Web UIが起動しない
-```bash
-pip3 install flask
-```
+### エラーが出る場合
 
-### ngrokが見つからない
-```bash
-which ngrok
-# 表示されない場合は再インストール
-```
+1. Python 3.11以上がインストールされているか確認
+   ```bash
+   python3 --version
+   ```
 
-### URLが変わった
-```bash
-# .envファイルのAPPROVAL_WEB_URLを新しいURLに更新
-```
+2. 依存関係が正しくインストールされているか確認
+   ```bash
+   pip3 list | grep -E "requests|python-dotenv"
+   ```
 
-## 🎉 完了！
+3. `.env`ファイルが正しく設定されているか確認
+   ```bash
+   cat .env
+   ```
 
-これで使い始められます。質問があれば各ドキュメントを参照してください。
+詳細は [SETUP_GUIDE.md](SETUP_GUIDE.md) のトラブルシューティングを参照してください。
+
+---
+
+**準備ができたら、実際に動かしてみましょう！** 🎉

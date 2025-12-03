@@ -1,4 +1,11 @@
-requests
-gspread
-oauth2client
-python-dotenv
+# Meta広告自動化システムの依存関係
+
+# HTTPリクエスト
+requests>=2.31.0
+
+# 環境変数管理
+python-dotenv>=1.0.0
+
+# Google Sheets連携（オプション）
+gspread>=5.12.0
+oauth2client>=4.1.3
