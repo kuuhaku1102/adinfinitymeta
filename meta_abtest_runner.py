@@ -4,7 +4,7 @@ from datetime import datetime
 
 import requests
 import gspread
-from slack_reaction_helper import send_slack_message_with_bot
+from slack_reaction_helper import send_slack_message_with_bot, send_slack_message_with_blocks
 
 try:
     from dotenv import load_dotenv
@@ -253,31 +253,79 @@ def send_slack_notice(ad, cpa, image_url, label):
         return
 
     ad_id = ad['id']
+    ad_name = ad['name']
     ad_details = fetch_ad_details(ad_id)
     campaign_name = fetch_campaign_name(ad_details.get("campaign_id", ""))
     adset_name = fetch_adset_name(ad_details.get("adset_id", ""))
 
-    text = f"""*📣 Meta広告通知 [{label}]*
-
-*キャンペーン名*: {campaign_name}
-*広告セット名*: {adset_name}
-*広告名*: {ad['name']}
-*CPA*: ¥{cpa if cpa is not None else 'N/A'}
-*広告ID*: `{ad_id}`
-*画像URL*: {image_url}
-
-👍 このメッセージに絵文字でリアクション:
-  ✅ = 停止を承認
-  ❌ = 却下
-"""
+    # Slack Block Kitでリッチなメッセージを作成
+    blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*📣 Meta広告通知 [{label}]*"
+            }
+        },
+        {
+            "type": "section",
+            "fields": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"*キャンペーン名:*\n{campaign_name}"
+                },
+                {
+                    "type": "mrkdwn",
+                    "text": f"*広告セット名:*\n{adset_name}"
+                },
+                {
+                    "type": "mrkdwn",
+                    "text": f"*広告名:*\n{ad_name}"
+                },
+                {
+                    "type": "mrkdwn",
+                    "text": f"*CPA:*\n¥{cpa if cpa is not None else 'N/A'}"
+                }
+            ]
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*広告ID:* `{ad_id}`"
+            }
+        }
+    ]
     
-    # Slack Bot Tokenを使ってメッセージを送信（メッセージIDを記録）
-    message_ts = send_slack_message_with_bot(text, ad_id)
+    # 画像があれば追加
+    if image_url and image_url != "N/A":
+        blocks.append({
+            "type": "image",
+            "image_url": image_url,
+            "alt_text": f"広告画像: {ad_name}"
+        })
+    
+    # リアクションの説明
+    blocks.append({
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": "👍 このメッセージに絵文字でリアクション: ✅ = 停止を承認 | ❌ = 却下"
+            }
+        ]
+    })
+    
+    # フォールバック用のテキスト
+    fallback_text = f"📣 Meta広告通知 [{label}]\n\nキャンペーン: {campaign_name}\n広告セット: {adset_name}\n広告名: {ad_name}\nCPA: ¥{cpa if cpa is not None else 'N/A'}\n広告ID: {ad_id}"
+    
+    # Slack Bot Tokenを使ってメッセージを送信
+    message_ts = send_slack_message_with_blocks(blocks, fallback_text, ad_id, ad_name)
     
     if not message_ts:
         # Bot Tokenが使えない場合はWebhookで送信
         print("⚠️  Bot Tokenが使えないため、Webhookで送信します")
-        post_slack_message(text)
+        post_slack_message(fallback_text)
 
 
 def notify_no_stop_candidates(account_id, reason=None):

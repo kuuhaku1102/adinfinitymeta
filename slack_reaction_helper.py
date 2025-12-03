@@ -84,7 +84,66 @@ def send_slack_message_with_bot(text, ad_id):
             
             return message_ts
         else:
-            print(f"❌ Slackメッセージ送信失敗: {result.get('error')}")
+            error_msg = result.get('error')
+            error_detail = result.get('response_metadata', {})
+            print(f"❌ Slackメッセージ送信失敗: {error_msg}")
+            if error_detail:
+                print(f"   詳細: {error_detail}")
+            return None
+    except Exception as e:
+        print(f"❌ Slackメッセージ送信エラー: {e}")
+        return None
+
+def send_slack_message_with_blocks(blocks, text, ad_id, ad_name=""):
+    """
+    Slack Block Kitを使ってリッチなメッセージを送信
+    """
+    if not SLACK_BOT_TOKEN:
+        print("[警告] SLACK_BOT_TOKENが未設定です")
+        return None
+    
+    if not SLACK_CHANNEL_ID:
+        print("[警告] SLACK_CHANNEL_IDが未設定です")
+        return None
+    
+    url = "https://slack.com/api/chat.postMessage"
+    headers = {
+        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "channel": SLACK_CHANNEL_ID,
+        "blocks": blocks,
+        "text": text  # フォールバック用
+    }
+    
+    try:
+        res = requests.post(url, headers=headers, json=payload)
+        result = res.json()
+        
+        if result.get("ok"):
+            message_ts = result.get("ts")
+            print(f"✅ Slackメッセージ送信成功: {message_ts}")
+            
+            # メッセージIDと広告IDを記録
+            reaction_data = load_reaction_data()
+            reaction_data.append({
+                "ad_id": ad_id,
+                "ad_name": ad_name,
+                "message_ts": message_ts,
+                "channel_id": SLACK_CHANNEL_ID,
+                "created_at": datetime.now().isoformat(),
+                "status": "pending"
+            })
+            save_reaction_data(reaction_data)
+            
+            return message_ts
+        else:
+            error_msg = result.get('error')
+            error_detail = result.get('response_metadata', {})
+            print(f"❌ Slackメッセージ送信失敗: {error_msg}")
+            if error_detail:
+                print(f"   詳細: {error_detail}")
             return None
     except Exception as e:
         print(f"❌ Slackメッセージ送信エラー: {e}")
