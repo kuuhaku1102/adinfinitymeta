@@ -21,6 +21,24 @@ SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")
 
 APPROVAL_FILE = "ad_copy_approvals.json"
+COPY_HISTORY_FILE = "ad_copy_history.json"
+
+def load_copy_history():
+    """コピー履歴を読み込み"""
+    if os.path.exists(COPY_HISTORY_FILE):
+        try:
+            with open(COPY_HISTORY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"⚠️  コピー履歴読み込みエラー: {e}")
+    return []
+
+def is_already_copied(adset_id, copy_history):
+    """広告セットが既にコピー済みかチェック"""
+    for record in copy_history:
+        if record.get("original_adset_id") == adset_id:
+            return True
+    return False
 
 def fetch_campaign_info(campaign_id):
     """キャンペーン情報を取得"""
@@ -216,6 +234,10 @@ def main():
     
     approvals = []
     
+    # コピー履歴を読み込み
+    copy_history = load_copy_history()
+    print(f"\n📋 コピー履歴: {len(copy_history)}件")
+    
     # 各キャンペーンを処理
     for campaign_id in CAMPAIGN_IDS:
         campaign_id = campaign_id.strip()
@@ -262,6 +284,11 @@ def main():
             total_ads = len(total_ads_data.get("data", []))
             
             print(f"     インプレッション500以下: {low_imp_count}件 / {total_ads}件")
+            
+            # コピー済みかチェック
+            if is_already_copied(adset_id, copy_history):
+                print(f"     ⚠️  既にコピー済みのためスキップ")
+                continue
             
             if low_imp_count == 0:
                 print(f"     ⚠️  インプレッション500以下の広告がないためスキップ")
