@@ -1,0 +1,72 @@
+name: Copy Low Impression Ads
+
+on:
+  # 手動実行
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '実行モード'
+        required: true
+        type: choice
+        options:
+          - 'all'  # 全広告セットを自動処理
+          - 'single'  # 単一の広告セットを処理
+        default: 'all'
+      adset_id:
+        description: '広告セットID（singleモードの場合のみ）'
+        required: false
+        type: string
+  
+  # 定期実行（毎週月曜日 午前9時 JST = 午前0時 UTC）
+  # デフォルトで全広告セットを自動処理
+  schedule:
+    - cron: '0 0 * * 1'
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Copy ads (All AdSets)
+        if: github.event.inputs.mode == 'all' || github.event_name == 'schedule'
+        env:
+          ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          CAMPAIGN_IDS: ${{ secrets.CAMPAIGN_IDS }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: |
+          echo "🚀 全広告セット自動処理モード"
+          python3 ad_copy_all_adsets.py
+      
+      - name: Copy ads (Single AdSet)
+        if: github.event.inputs.mode == 'single' && github.event.inputs.adset_id != ''
+        env:
+          ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          TARGET_ADSET_ID: ${{ github.event.inputs.adset_id }}
+        run: |
+          echo "🎯 単一広告セット処理モード"
+          echo "広告セットID: $TARGET_ADSET_ID"
+          python3 ad_copy_low_impression.py
+      
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: copy-results
+          path: |
+            ad_copy_history.json
+          retention-days: 30
