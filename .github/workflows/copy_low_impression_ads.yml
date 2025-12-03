@@ -39,7 +39,7 @@ jobs:
         run: |
           pip install -r requirements.txt
       
-      - name: Copy ads (All AdSets)
+      - name: Request approval (All AdSets)
         if: github.event.inputs.mode == 'all' || github.event_name == 'schedule'
         env:
           ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
@@ -47,8 +47,8 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
         run: |
-          echo "🚀 全広告セット自動処理モード"
-          python3 ad_copy_all_adsets.py
+          echo "📝 Slack承認リクエスト送信モード"
+          python3 ad_copy_with_approval.py
       
       - name: Copy ads (Single AdSet)
         if: github.event.inputs.mode == 'single' && github.event.inputs.adset_id != ''
@@ -62,11 +62,11 @@ jobs:
           echo "広告セットID: $TARGET_ADSET_ID"
           python3 ad_copy_low_impression.py
       
-      - name: Upload results
+      - name: Upload approval requests
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: copy-results
+          name: approval-requests
           path: |
-            ad_copy_history.json
+            ad_copy_approvals.json
           retention-days: 30
