@@ -163,9 +163,14 @@ def create_v2_adset(original_adset):
     elif "lifetime_budget" in original_adset and original_adset["lifetime_budget"]:
         payload["lifetime_budget"] = original_adset["lifetime_budget"]
     
-    # 入札額
+    # 入札設定
     if "bid_amount" in original_adset and original_adset["bid_amount"]:
         payload["bid_amount"] = original_adset["bid_amount"]
+        print(f"入札額を設定: {original_adset['bid_amount']}")
+    else:
+        # bid_amountがない場合はbid_strategyを設定
+        payload["bid_strategy"] = "LOWEST_COST_WITHOUT_CAP"
+        print("入札戦略を設定: LOWEST_COST_WITHOUT_CAP")
     
     try:
         res = requests.post(url, data=payload)
