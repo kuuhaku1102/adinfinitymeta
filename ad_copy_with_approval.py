@@ -20,7 +20,7 @@ CAMPAIGN_IDS = os.getenv("CAMPAIGN_IDS", "").split(",")
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")
 
-APPROVAL_FILE = "ad_copy_approvals.json"
+APPROVAL_FILE = "pending_approvals.json"
 COPY_HISTORY_FILE = "ad_copy_history.json"
 
 def load_copy_history():
