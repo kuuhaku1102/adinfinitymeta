@@ -43,6 +43,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add ad_copy_approvals.json ad_copy_history.json || true
+          git add pending_approvals.json || true
           git diff --staged --quiet || git commit -m "Update copy results and approval status"
           git push || true
