@@ -48,17 +48,20 @@ def check_approval_status(message_ts):
     if not SLACK_BOT_TOKEN or not SLACK_CHANNEL_ID:
         return None
     
-    reactions = get_message_reactions(SLACK_CHANNEL_ID, message_ts)
+    reactions = get_message_reactions(message_ts)
     
     if not reactions:
         return "pending"
     
+    # リアクションオブジェクトから絵文字名を抽出
+    reaction_names = [r.get("name") for r in reactions]
+    
     # ✅があれば承認
-    if "white_check_mark" in reactions:
+    if "white_check_mark" in reaction_names:
         return "approved"
     
     # ❌があれば却下
-    if "x" in reactions:
+    if "x" in reaction_names:
         return "rejected"
     
     return "pending"
