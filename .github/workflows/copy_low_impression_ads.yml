@@ -62,11 +62,11 @@ jobs:
           echo "広告セットID: $TARGET_ADSET_ID"
           python3 ad_copy_low_impression.py
       
-      - name: Upload approval requests
+      - name: Commit and push approval requests
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: approval-requests
-          path: |
-            ad_copy_approvals.json
-          retention-days: 30
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add ad_copy_approvals.json ad_copy_history.json || true
+          git diff --staged --quiet || git commit -m "Update approval requests and copy history"
+          git push || true
