@@ -17,19 +17,30 @@ load_dotenv()
 
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")
-APPROVAL_FILE = "ad_copy_approvals.json"
+APPROVAL_FILE = "pending_approvals.json"
 
 def load_approval_data():
-    """承認データを読み込み"""
+    """承認データを読み込み（ad_copy用のみ抽出）"""
     if not os.path.exists(APPROVAL_FILE):
         print(f"⚠️  承認データファイルが見つかりません: {APPROVAL_FILE}")
         return []
-    
+
     try:
         with open(APPROVAL_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        print(f"✅ 承認データを読み込み: {len(data)}件")
-        return data
+            all_entries = json.load(f)
+        print(f"✅ 承認データを読み込み: {len(all_entries)}件")
+
+        # ad_copy_with_approval.py が書き込んだレコードのみ処理
+        approvals = [
+            entry
+            for entry in all_entries
+            if isinstance(entry, dict)
+            and entry.get("adset_id")
+            and entry.get("message_ts")
+        ]
+
+        print(f"   ↪️  広告コピー用の承認データ: {len(approvals)}件")
+        return approvals
     except Exception as e:
         print(f"❌ 承認データ読み込みエラー: {e}")
         return []
@@ -37,8 +48,38 @@ def load_approval_data():
 def save_approval_data(approvals):
     """承認データを保存"""
     try:
+        with open(APPROVAL_FILE, "r", encoding="utf-8") as f:
+            existing = json.load(f)
+    except FileNotFoundError:
+        existing = []
+    except Exception as e:
+        print(f"❌ 承認データ読み込みエラー（保存時）: {e}")
+        return
+
+    # 既存レコードを更新（adset_id + message_ts をキーにマージ）
+    updated = []
+    for entry in existing:
+        if not isinstance(entry, dict):
+            updated.append(entry)
+            continue
+
+        key = (entry.get("adset_id"), entry.get("message_ts"))
+        override = next(
+            (a for a in approvals if (a.get("adset_id"), a.get("message_ts")) == key),
+            None,
+        )
+        updated.append(override if override else entry)
+
+    # 既存に無かった新規レコードを追加
+    existing_keys = {(e.get("adset_id"), e.get("message_ts")) for e in existing if isinstance(e, dict)}
+    for approval in approvals:
+        key = (approval.get("adset_id"), approval.get("message_ts"))
+        if key not in existing_keys:
+            updated.append(approval)
+
+    try:
         with open(APPROVAL_FILE, "w", encoding="utf-8") as f:
-            json.dump(approvals, f, ensure_ascii=False, indent=2)
+            json.dump(updated, f, ensure_ascii=False, indent=2)
         print(f"✅ 承認データを保存: {APPROVAL_FILE}")
     except Exception as e:
         print(f"❌ 承認データ保存エラー: {e}")
