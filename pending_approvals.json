@@ -2,31 +2,41 @@
   {
     "campaign_id": "120230617419590484",
     "campaign_name": "2507-target-test-python",
+    "adset_id": "120237882853190484",
+    "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2",
+    "low_imp_count": 10,
+    "total_ads": 12,
+    "message_ts": "1765760235.316949",
+    "status": "pending"
+  },
+  {
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
     "adset_id": "120236746949630484",
     "adset_name": "ウェディングCR×結婚披露宴（ウエディング）",
     "low_imp_count": 12,
     "total_ads": 13,
-    "message_ts": "1765168751.582929",
-    "status": "approved_executed"
+    "message_ts": "1765760240.720639",
+    "status": "pending"
   },
   {
-    "campaign_id": "120231962646350484",
-    "campaign_name": "2507-target-test-python -未配信",
-    "adset_id": "120237603233460484",
-    "adset_name": "2507-CVCP-segment-ウェディングプランナー V2",
-    "low_imp_count": 4,
-    "total_ads": 5,
-    "message_ts": "1765168769.522759",
-    "status": "approved_executed"
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
+    "adset_id": "120236364999520484",
+    "adset_name": "ウェディングCR×花嫁",
+    "low_imp_count": 8,
+    "total_ads": 13,
+    "message_ts": "1765760245.789419",
+    "status": "pending"
   },
   {
-    "campaign_id": "120231962646350484",
-    "campaign_name": "2507-target-test-python -未配信",
-    "adset_id": "120237603202380484",
-    "adset_name": "2507-CVCP-segment-ウェディング・プランナー V2",
-    "low_imp_count": 14,
-    "total_ads": 0,
-    "message_ts": "1765168778.890989",
-    "status": "approved_executed"
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
+    "adset_id": "120235900459510484",
+    "adset_name": "2507-CVCP-segment-結婚披露宴（ウエディング）",
+    "low_imp_count": 12,
+    "total_ads": 17,
+    "message_ts": "1765760252.335649",
+    "status": "pending"
   }
 ]
