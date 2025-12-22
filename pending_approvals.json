@@ -7,7 +7,7 @@
     "low_imp_count": 11,
     "total_ads": 12,
     "message_ts": "1766370442.030949",
-    "status": "pending"
+    "status": "approved_executed"
   },
   {
     "campaign_id": "120230617419590484",
@@ -17,7 +17,7 @@
     "low_imp_count": 7,
     "total_ads": 8,
     "message_ts": "1766370445.656489",
-    "status": "pending"
+    "status": "approved_executed"
   },
   {
     "campaign_id": "120230617419590484",
@@ -27,6 +27,6 @@
     "low_imp_count": 10,
     "total_ads": 11,
     "message_ts": "1766370451.248539",
-    "status": "pending"
+    "status": "approved_executed"
   }
 ]
