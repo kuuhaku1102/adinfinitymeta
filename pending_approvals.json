@@ -2,32 +2,42 @@
   {
     "campaign_id": "120230617419590484",
     "campaign_name": "2507-target-test-python",
-    "adset_id": "120239117780020484",
-    "adset_name": "ウェディングCR×花嫁 V2",
-    "low_imp_count": 7,
-    "total_ads": 8,
-    "message_ts": "1768273550.941969",
-    "status": "approved_executed"
-  },
-  {
-    "campaign_id": "120230617419590484",
-    "campaign_name": "2507-target-test-python",
-    "adset_id": "120239117728820484",
+    "adset_id": "120239352424310484",
     "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2 V2 V2",
     "low_imp_count": 5,
     "total_ads": 6,
-    "message_ts": "1768273556.095549",
-    "status": "approved_executed"
+    "message_ts": "1768784450.570359",
+    "status": "pending"
   },
   {
     "campaign_id": "120230617419590484",
     "campaign_name": "2507-target-test-python",
-    "adset_id": "120239117713590484",
-    "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2 V2",
+    "adset_id": "120239352402140484",
+    "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2",
+    "low_imp_count": 9,
+    "total_ads": 10,
+    "message_ts": "1768784455.140729",
+    "status": "pending"
+  },
+  {
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
+    "adset_id": "120239352396180484",
+    "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2 V2 V2 V2",
+    "low_imp_count": 4,
+    "total_ads": 5,
+    "message_ts": "1768784457.604109",
+    "status": "pending"
+  },
+  {
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
+    "adset_id": "120239352389130484",
+    "adset_name": "ウェディングCR×花嫁 V2 V2",
     "low_imp_count": 6,
-    "total_ads": 11,
-    "message_ts": "1768273563.171929",
-    "status": "approved_executed"
+    "total_ads": 7,
+    "message_ts": "1768784460.957409",
+    "status": "pending"
   },
   {
     "campaign_id": "120230617419590484",
@@ -36,7 +46,7 @@
     "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2 V2",
     "low_imp_count": 6,
     "total_ads": 9,
-    "message_ts": "1768273572.445309",
-    "status": "approved_executed"
+    "message_ts": "1768784469.485079",
+    "status": "pending"
   }
 ]
