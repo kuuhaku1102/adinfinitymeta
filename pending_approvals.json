@@ -2,51 +2,41 @@
   {
     "campaign_id": "120230617419590484",
     "campaign_name": "2507-target-test-python",
-    "adset_id": "120239352424310484",
+    "adset_id": "120239566239360484",
+    "adset_name": "ガーデン系",
+    "low_imp_count": 10,
+    "total_ads": 13,
+    "message_ts": "1769389321.490579",
+    "status": "pending"
+  },
+  {
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
+    "adset_id": "120239566185500484",
+    "adset_name": "1.5次会系",
+    "low_imp_count": 9,
+    "total_ads": 14,
+    "message_ts": "1769389327.594089",
+    "status": "pending"
+  },
+  {
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
+    "adset_id": "120239565948600484",
     "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2 V2 V2",
     "low_imp_count": 5,
     "total_ads": 6,
-    "message_ts": "1768784450.570359",
-    "status": "approved_executed"
+    "message_ts": "1769389331.445779",
+    "status": "pending"
   },
   {
     "campaign_id": "120230617419590484",
     "campaign_name": "2507-target-test-python",
-    "adset_id": "120239352402140484",
-    "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2",
-    "low_imp_count": 9,
-    "total_ads": 10,
-    "message_ts": "1768784455.140729",
-    "status": "approved_executed"
-  },
-  {
-    "campaign_id": "120230617419590484",
-    "campaign_name": "2507-target-test-python",
-    "adset_id": "120239352396180484",
-    "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2 V2 V2 V2",
+    "adset_id": "120239565944220484",
+    "adset_name": "ウェディングCR×花嫁 V2 V2 V2",
     "low_imp_count": 4,
-    "total_ads": 5,
-    "message_ts": "1768784457.604109",
-    "status": "approved_executed"
-  },
-  {
-    "campaign_id": "120230617419590484",
-    "campaign_name": "2507-target-test-python",
-    "adset_id": "120239352389130484",
-    "adset_name": "ウェディングCR×花嫁 V2 V2",
-    "low_imp_count": 6,
-    "total_ads": 7,
-    "message_ts": "1768784460.957409",
-    "status": "approved_executed"
-  },
-  {
-    "campaign_id": "120230617419590484",
-    "campaign_name": "2507-target-test-python",
-    "adset_id": "120238850164060484",
-    "adset_name": "ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2 V2",
-    "low_imp_count": 6,
-    "total_ads": 9,
-    "message_ts": "1768784469.485079",
-    "status": "approved_executed"
+    "total_ads": 6,
+    "message_ts": "1769389334.869739",
+    "status": "pending"
   }
 ]
