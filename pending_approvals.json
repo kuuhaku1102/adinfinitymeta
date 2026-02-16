@@ -4,9 +4,9 @@
     "campaign_name": "2507-target-test-python",
     "adset_id": "120239982118830484",
     "adset_name": "2026ウェディングCR×花嫁 V2 V2 V2 V2",
-    "low_imp_count": 10,
+    "low_imp_count": 8,
     "total_ads": 13,
-    "message_ts": "1770599473.849949",
+    "message_ts": "1771204240.103069",
     "status": "pending"
   },
   {
@@ -14,9 +14,9 @@
     "campaign_name": "2507-target-test-python",
     "adset_id": "120239982112230484",
     "adset_name": "2026ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2 V2 V2 V2",
-    "low_imp_count": 9,
+    "low_imp_count": 7,
     "total_ads": 13,
-    "message_ts": "1770599481.086539",
+    "message_ts": "1771204246.982729",
     "status": "pending"
   },
   {
@@ -26,7 +26,7 @@
     "adset_name": "1.5次会系 V2",
     "low_imp_count": 21,
     "total_ads": 23,
-    "message_ts": "1770599492.859979",
+    "message_ts": "1771204257.139549",
     "status": "pending"
   },
   {
@@ -35,8 +35,8 @@
     "adset_id": "120239982090930484",
     "adset_name": "ガーデン系 V2",
     "low_imp_count": 9,
-    "total_ads": 10,
-    "message_ts": "1770599498.808489",
+    "total_ads": 0,
+    "message_ts": "1771204262.826529",
     "status": "pending"
   }
 ]
