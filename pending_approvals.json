@@ -7,7 +7,7 @@
     "low_imp_count": 8,
     "total_ads": 9,
     "message_ts": "1771808972.609299",
-    "status": "pending"
+    "status": "approved_executed"
   },
   {
     "campaign_id": "120230617419590484",
@@ -17,7 +17,7 @@
     "low_imp_count": 19,
     "total_ads": 20,
     "message_ts": "1771808980.951149",
-    "status": "pending"
+    "status": "approved_executed"
   },
   {
     "campaign_id": "120230617419590484",
@@ -27,7 +27,7 @@
     "low_imp_count": 5,
     "total_ads": 6,
     "message_ts": "1771808983.888809",
-    "status": "pending"
+    "status": "approved_executed"
   },
   {
     "campaign_id": "120230617419590484",
@@ -37,7 +37,7 @@
     "low_imp_count": 6,
     "total_ads": 8,
     "message_ts": "1771808987.224029",
-    "status": "pending"
+    "status": "approved_executed"
   },
   {
     "campaign_id": "120230617419590484",
@@ -47,6 +47,6 @@
     "low_imp_count": 6,
     "total_ads": 0,
     "message_ts": "1771808994.367959",
-    "status": "pending"
+    "status": "approved_executed"
   }
 ]
