@@ -2,41 +2,51 @@
   {
     "campaign_id": "120230617419590484",
     "campaign_name": "2507-target-test-python",
-    "adset_id": "120239982118830484",
-    "adset_name": "2026ウェディングCR×花嫁 V2 V2 V2 V2",
+    "adset_id": "120240669599960484",
+    "adset_name": "ガーデン系 V2 V2",
     "low_imp_count": 8,
-    "total_ads": 13,
-    "message_ts": "1771204240.103069",
-    "status": "approved_executed"
+    "total_ads": 9,
+    "message_ts": "1771808972.609299",
+    "status": "pending"
+  },
+  {
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
+    "adset_id": "120240669582340484",
+    "adset_name": "1.5次会系 V2 V2",
+    "low_imp_count": 19,
+    "total_ads": 20,
+    "message_ts": "1771808980.951149",
+    "status": "pending"
+  },
+  {
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
+    "adset_id": "120240669577110484",
+    "adset_name": "2026ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2 V2 V2 V2 V2",
+    "low_imp_count": 5,
+    "total_ads": 6,
+    "message_ts": "1771808983.888809",
+    "status": "pending"
+  },
+  {
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
+    "adset_id": "120240669570700484",
+    "adset_name": "2026ウェディングCR×花嫁 V2 V2 V2 V2 V2",
+    "low_imp_count": 6,
+    "total_ads": 8,
+    "message_ts": "1771808987.224029",
+    "status": "pending"
   },
   {
     "campaign_id": "120230617419590484",
     "campaign_name": "2507-target-test-python",
     "adset_id": "120239982112230484",
     "adset_name": "2026ウェディングCR×結婚披露宴（ウエディング） V2 V2 V2 V2 V2 V2",
-    "low_imp_count": 7,
-    "total_ads": 13,
-    "message_ts": "1771204246.982729",
-    "status": "approved_executed"
-  },
-  {
-    "campaign_id": "120230617419590484",
-    "campaign_name": "2507-target-test-python",
-    "adset_id": "120239982101720484",
-    "adset_name": "1.5次会系 V2",
-    "low_imp_count": 21,
-    "total_ads": 23,
-    "message_ts": "1771204257.139549",
-    "status": "approved_executed"
-  },
-  {
-    "campaign_id": "120230617419590484",
-    "campaign_name": "2507-target-test-python",
-    "adset_id": "120239982090930484",
-    "adset_name": "ガーデン系 V2",
-    "low_imp_count": 9,
+    "low_imp_count": 6,
     "total_ads": 0,
-    "message_ts": "1771204262.826529",
-    "status": "approved_executed"
+    "message_ts": "1771808994.367959",
+    "status": "pending"
   }
 ]
