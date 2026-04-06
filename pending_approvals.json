@@ -2,41 +2,31 @@
   {
     "campaign_id": "120230617419590484",
     "campaign_name": "2507-target-test-python",
+    "adset_id": "120241846477390484",
+    "adset_name": "1.5次会系 V2 V2 V2 V2 V2",
+    "low_imp_count": 13,
+    "total_ads": 17,
+    "message_ts": "1775438481.704379",
+    "status": "pending"
+  },
+  {
+    "campaign_id": "120230617419590484",
+    "campaign_name": "2507-target-test-python",
     "adset_id": "120241542899300484",
     "adset_name": "ウェディング系 - コピー",
-    "low_imp_count": 20,
+    "low_imp_count": 16,
     "total_ads": 31,
-    "message_ts": "1773623855.459769",
-    "status": "approved_executed"
+    "message_ts": "1775438495.184149",
+    "status": "pending"
   },
   {
     "campaign_id": "120230617419590484",
     "campaign_name": "2507-target-test-python",
     "adset_id": "120241542898950484",
     "adset_name": "プラン系 - コピー",
-    "low_imp_count": 10,
-    "total_ads": 13,
-    "message_ts": "1773623864.498969",
-    "status": "approved_executed"
-  },
-  {
-    "campaign_id": "120230617419590484",
-    "campaign_name": "2507-target-test-python",
-    "adset_id": "120241240466950484",
-    "adset_name": "ガーデン系 V2 V2 V2 V2",
-    "low_imp_count": 5,
-    "total_ads": 7,
-    "message_ts": "1773623870.356399",
-    "status": "approved_executed"
-  },
-  {
-    "campaign_id": "120230617419590484",
-    "campaign_name": "2507-target-test-python",
-    "adset_id": "120241240454420484",
-    "adset_name": "1.5次会系 V2 V2 V2 V2",
-    "low_imp_count": 17,
-    "total_ads": 18,
-    "message_ts": "1773623883.767829",
-    "status": "approved_executed"
+    "low_imp_count": 8,
+    "total_ads": 0,
+    "message_ts": "1775438501.780659",
+    "status": "pending"
   }
 ]
